@@ -81,6 +81,8 @@ open-backup run               # 常駐(変更検知 + 定期実行)
 - アカウントの新規作成は GitHub 側で利用者自身が行います(本ツールは作成しません)。
 - トークンはOSの資格情報ストアに保存し、gitのコマンドラインには出しません。
 - 100MB超のファイルはGitHubの制限により対象外(既定95MB超をスキップ)。
+- 保存形式は普通のフォルダ(元の構造のまま)。自動カテゴリ分け(拡張子)と自動索引は、各リポジトリの `INDEX.md` と `.open-backup/index.jsonl` に出力します。
+  Stored as plain folders (original layout). Auto-categorization (by extension) and an auto-index are written to `INDEX.md` and `.open-backup/index.jsonl` in each repo.
 - 元で削除したファイルはバックアップ側からも消えますが、gitの履歴には残ります。
 
 ## ライセンス / License

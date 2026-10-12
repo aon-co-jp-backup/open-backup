@@ -202,6 +202,7 @@ fn backup_into(cfg: &Config, token: &str, owner: &str, name: &str, work: &Path) 
         let l = label(f, &mut used);
         mirror(f, &work.join(&l), cfg, &mut rep)?;
     }
+    crate::index::write_index(work, name)?;
     git(work, None, &["add", "-A"])?;
     if git(work, None, &["status", "--porcelain"])?.trim().is_empty() {
         return Ok(rep);

@@ -3,4 +3,5 @@
 pub mod auth;
 pub mod config;
 pub mod github;
+pub mod index;
 pub mod sync;
