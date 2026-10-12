@@ -259,3 +259,13 @@ fn topics_for(work: &Path, eng: Option<&crate::ai::Engine>) -> std::collections:
     }
     out
 }
+
+/// 指定フォルダの索引(拡張子+AIトピック)だけを作る。GitHub へは何も送らない(動作確認用)。
+pub fn index_only(cfg: &Config, dir: &Path) -> Result<()> {
+    let eng = crate::ai::start(cfg);
+    if eng.is_none() {
+        eprintln!("AI分類は利用できません。拡張子分類のみ");
+    }
+    let topics = topics_for(dir, eng.as_ref());
+    crate::index::write_index(dir, "index-only", &topics)
+}

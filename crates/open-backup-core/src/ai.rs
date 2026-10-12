@@ -7,10 +7,22 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
+/// 埋め込みの分類は短い語だと精度が落ちるため、説明文つきで渡して結果は「（」の前の名前に戻す。
 pub const TOPICS: &[&str] = &[
-    "仕事・業務", "お金・家計・領収書", "写真・思い出", "学習・調べもの・資料",
-    "開発・プログラム", "契約・公的書類", "設定・システム", "趣味・娯楽", "その他",
+    "仕事・業務（会議、議事録、プロジェクト、報告書、タスク、業務連絡）",
+    "お金・家計・領収書（請求書、料金、支払い、給与、税金、銀行）",
+    "写真・思い出（旅行、家族、写真、イベント、アルバム）",
+    "学習・調べもの・資料（勉強、論文、ノート、参考資料）",
+    "開発・プログラム（ソースコード、プログラミング、関数、ビルド）",
+    "契約・公的書類（契約書、申請、保険、証明書、役所）",
+    "設定・システム（設定ファイル、ログ、パスワード、環境設定）",
+    "趣味・娯楽（ゲーム、音楽、映画、読書）",
+    "その他",
 ];
+
+fn topic_name(s: &str) -> String {
+    s.split('（').next().unwrap_or(s).to_string()
+}
 
 /// 起動した同梱エンジン。Drop で停止する。
 pub struct Engine { child: Option<Child>, base: String }
@@ -76,7 +88,7 @@ fn classify(eng: &Engine, items: &[String]) -> Result<Vec<String>> {
         .send_json(serde_json::json!({"items": items, "categories": TOPICS, "tenant": "open-backup"}))?
         .into_json()?;
     let Some(a) = r["results"].as_array() else { bail!("応答が不正") };
-    Ok(a.iter().map(|x| x["category"].as_str().unwrap_or("その他").to_string()).collect())
+    Ok(a.iter().map(|x| topic_name(x["category"].as_str().unwrap_or("その他"))).collect())
 }
 
 pub type Cache = HashMap<String, String>; // "path|size|mtime" -> topic

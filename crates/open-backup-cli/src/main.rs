@@ -29,6 +29,8 @@ enum Cmd {
     Remove { folder: PathBuf },
     /// 設定と状態を表示
     Status,
+    /// 指定フォルダの索引だけ作る(GitHub へは送らない。動作確認用)
+    Index { folder: PathBuf },
     /// 1回だけバックアップ
     Once,
     /// 常駐(変更を検知して自動バックアップ + 定期実行)
@@ -91,6 +93,7 @@ fn main() -> Result<()> {
                     .unwrap_or_else(|| "未".into())
             );
         }
+        Cmd::Index { folder } => sync::index_only(&cfg, &folder)?,
         Cmd::Once => report(sync::run_once(&cfg)),
         Cmd::Run => {
             let (tx, rx) = mpsc::channel();
