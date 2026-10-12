@@ -34,6 +34,18 @@ Rust のみで実装し、画面は [RPoem](https://github.com/aon-co-jp/RPoem) 
 | 画面(RPoem crossui) | Windows/macOS/Linux/Android 向けのUI | 未着手 |
 | iPhone | 将来 | 未着手 |
 
+## 事前準備(利用者の自己責任で) / Before you start (your own responsibility)
+
+**日本語**: GitHub のアカウントを**新規に作成**するか、**既にお持ちならログイン**してください。
+次に、バックアップに必要な**最低限の権限のトークン**の作り方を、Google などで検索してご自身で調べたうえでご利用ください。
+(参考: 保存先の非公開リポジトリを先に自分で作り、そのリポジトリだけに「Contents: 読み書き」を許可した Fine-grained トークンにすると、権限を最小にできます。)
+トークンは他人に見せず、公開リポジトリやチャットに貼らないでください。
+
+**English**: **Create a GitHub account**, or **log in if you already have one**.
+Then look up, via Google or similar, how to create a token with the **minimum permissions** needed, and use it at your own responsibility.
+(Hint: create the private destination repository yourself first, then issue a fine-grained token limited to that single repository with "Contents: read and write" only.)
+Never show the token to anyone or paste it into a public repository or chat.
+
 ## 使い方 / Usage
 
 ```bash
