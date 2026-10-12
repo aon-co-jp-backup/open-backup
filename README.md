@@ -102,3 +102,9 @@ MIT OR Apache-2.0
 Nothing is sent off the device (the endpoint is always loopback). If `aruaru-llm` is missing or fails to start, only extension categories are used.
 Installing and supervising `aruaru-llm` is planned to be handled together with open-easy-web (not implemented yet).
 Disable with `ai_classify = false` in `config.toml`.
+
+## 動作確認の記録 / Verification log (2026-10-12)
+
+- 実機(Windows)で、テスト用の非公開リポジトリへ push・増分(変更/削除)・自動切り替えを確認。
+- 確認で見つけて直した点: 上限の計算が MB の整数で切り捨てられていた / データ自体が上限を超えると毎回切り替わっていた(警告して現状維持に変更) / GitHub の二次レート制限で次のリポジトリを作れない場合は切り替えを見送る。
+- 未確認: macOS・Linux・Android・iPhone、画面(RPoem)。

@@ -67,6 +67,7 @@ fn main() -> Result<()> {
         }
         Cmd::Add { folder } => {
             let f = std::fs::canonicalize(&folder)?;
+            let f = PathBuf::from(f.to_string_lossy().trim_start_matches("\\\\?\\"));
             if !cfg.folders.contains(&f) {
                 cfg.folders.push(f);
                 cfg.save()?;

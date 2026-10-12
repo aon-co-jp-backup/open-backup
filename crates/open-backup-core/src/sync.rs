@@ -128,7 +128,7 @@ fn save_state(s: &State) -> Result<()> {
     Ok(())
 }
 
-fn dir_size_mb(p: &Path) -> u64 {
+fn dir_size_kb(p: &Path) -> u64 {
     WalkDir::new(p)
         .into_iter()
         .filter_map(|e| e.ok())
@@ -136,7 +136,7 @@ fn dir_size_mb(p: &Path) -> u64 {
         .filter(|m| m.is_file())
         .map(|m| m.len())
         .sum::<u64>()
-        / (1024 * 1024)
+        / 1024
 }
 
 /// 全対象フォルダをミラー → commit → push。
@@ -150,7 +150,9 @@ pub fn run_once(cfg: &Config) -> Result<Report> {
     let owner = github::login_name(&token)?;
     let mut st = load_state();
     github::ensure_private_repo(&token, &owner, &cfg.repo_name_n(st.active))?;
-    github::ensure_private_repo(&token, &owner, &cfg.repo_name_n(st.active + 1))?;
+    if let Err(e) = github::ensure_private_repo(&token, &owner, &cfg.repo_name_n(st.active + 1)) {
+        eprintln!("警告: 予備リポジトリの作成に失敗(次回再試行): {e:#}");
+    }
 
     let eng = crate::ai::start(cfg);
     if eng.is_none() && cfg.ai_classify {
@@ -167,16 +169,35 @@ pub fn run_once(cfg: &Config) -> Result<Report> {
         total.skipped_large.extend(rep.skipped_large);
         total.pushed |= rep.pushed;
 
-        if dir_size_mb(&work.join(".git")) < cfg.max_repo_mb * 9 / 10 {
+        if dir_size_kb(&work.join(".git")) < cfg.max_repo_mb * 1024 * 9 / 10 {
             break;
         }
-        // 上限の9割に達した: 次へ切り替え。古い世代はGitHubに残し、手元の作業コピーは消す
+        // データ自体が1リポジトリの上限を超えている場合、切り替えても解決しない
+        // (実行のたびに新しいリポジトリを作り続けてしまう)ため、警告して現状維持にする。
+        let data_kb = dir_size_kb(&work).saturating_sub(dir_size_kb(&work.join(".git")));
+        let data_mb = data_kb / 1024;
+        if data_kb >= cfg.max_repo_mb * 1024 * 9 / 10 {
+            eprintln!(
+                "警告: バックアップ対象のデータ({data_mb}MB)が1リポジトリの上限({}MB)に近いため、自動切り替えをしません。max_repo_mb を上げるか対象を減らしてください",
+                cfg.max_repo_mb
+            );
+            break;
+        }
+        // 上限の9割に達した: 次へ切り替え。古い世代はGitHubに残し、手元の作業コピーは消す。
+        // 次のリポジトリを用意できない(レート制限等)ときは切り替えず、現用に保存を続ける。
+        let next = cfg.repo_name_n(st.active + 1);
+        if let Err(e) = github::ensure_private_repo(&token, &owner, &next) {
+            eprintln!("警告: 次のリポジトリ {next} を用意できないため切り替えを見送ります: {e:#}");
+            break;
+        }
         eprintln!("{name} が上限に近いため次のリポジトリへ切り替えます");
         let _ = std::fs::remove_dir_all(&work);
         st.active += 1;
         save_state(&st)?;
-        github::ensure_private_repo(&token, &owner, &cfg.repo_name_n(st.active))?;
-        github::ensure_private_repo(&token, &owner, &cfg.repo_name_n(st.active + 1))?;
+        // 予備(さらに次)の作成失敗は致命的ではない。次回以降に再試行する。
+        if let Err(e) = github::ensure_private_repo(&token, &owner, &cfg.repo_name_n(st.active + 1)) {
+            eprintln!("警告: 予備リポジトリの作成に失敗(次回再試行): {e:#}");
+        }
     }
     save_state(&st)?;
     Ok(total)
