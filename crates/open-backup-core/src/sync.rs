@@ -106,29 +106,91 @@ fn mirror(src: &Path, dst: &Path, cfg: &Config, rep: &mut Report) -> Result<()> 
     Ok(())
 }
 
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct State {
+    /// 現在書き込み中のリポジトリの世代番号
+    active: u32,
+}
+
+fn load_state() -> State {
+    data_dir()
+        .ok()
+        .and_then(|d| std::fs::read_to_string(d.join("state.json")).ok())
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or(State { active: 1 })
+}
+
+fn save_state(s: &State) -> Result<()> {
+    let d = data_dir()?;
+    std::fs::create_dir_all(&d)?;
+    std::fs::write(d.join("state.json"), serde_json::to_string(s)?)?;
+    Ok(())
+}
+
+fn dir_size_mb(p: &Path) -> u64 {
+    WalkDir::new(p)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter_map(|e| e.metadata().ok())
+        .filter(|m| m.is_file())
+        .map(|m| m.len())
+        .sum::<u64>()
+        / (1024 * 1024)
+}
+
 /// 全対象フォルダをミラー → commit → push。
+/// 初回は現用(-0001)と次用(-0002)の2つの非公開リポジトリを同時に作る。
+/// 現用が上限に近づいたら次用へ切り替え、さらに次の新規リポジトリを作る。
 pub fn run_once(cfg: &Config) -> Result<Report> {
     if cfg.folders.is_empty() {
         bail!("対象フォルダが未設定です。`open-backup add <フォルダ>`");
     }
     let token = auth::token()?;
     let owner = github::login_name(&token)?;
-    let name = cfg.repo_name();
-    github::ensure_private_repo(&token, &owner, &name)?;
+    let mut st = load_state();
+    github::ensure_private_repo(&token, &owner, &cfg.repo_name_n(st.active))?;
+    github::ensure_private_repo(&token, &owner, &cfg.repo_name_n(st.active + 1))?;
 
-    let work = data_dir()?.join("repos").join(&name);
-    std::fs::create_dir_all(&work)?;
+    let mut total = Report::default();
+    // 切り替え直後は新しい現用リポジトリへ全データを入れ直す(最大1回)
+    for _ in 0..2 {
+        let name = cfg.repo_name_n(st.active);
+        let work = data_dir()?.join("repos").join(&name);
+        let rep = backup_into(cfg, &token, &owner, &name, &work)?;
+        total.copied += rep.copied;
+        total.removed += rep.removed;
+        total.skipped_large.extend(rep.skipped_large);
+        total.pushed |= rep.pushed;
+
+        if dir_size_mb(&work.join(".git")) < cfg.max_repo_mb * 9 / 10 {
+            break;
+        }
+        // 上限の9割に達した: 次へ切り替え。古い世代はGitHubに残し、手元の作業コピーは消す
+        eprintln!("{name} が上限に近いため次のリポジトリへ切り替えます");
+        let _ = std::fs::remove_dir_all(&work);
+        st.active += 1;
+        save_state(&st)?;
+        github::ensure_private_repo(&token, &owner, &cfg.repo_name_n(st.active))?;
+        github::ensure_private_repo(&token, &owner, &cfg.repo_name_n(st.active + 1))?;
+    }
+    save_state(&st)?;
+    Ok(total)
+}
+
+fn backup_into(cfg: &Config, token: &str, owner: &str, name: &str, work: &Path) -> Result<Report> {
+    std::fs::create_dir_all(work)?;
     if !work.join(".git").exists() {
-        git(&work, None, &["init", "-q", "-b", "main"])?;
+        git(work, None, &["init", "-q", "-b", "main"])?;
         git(
-            &work,
+            work,
             None,
             &["remote", "add", "origin", &format!("https://github.com/{owner}/{name}.git")],
         )?;
-        // 既存の履歴があれば取り込む(別端末からの再接続など)
-        let _ = git(&work, Some(&token), &["pull", "-q", "--rebase", "origin", "main"]);
+        // 既存の履歴があれば取り込む(別端末からの再接続など。空リポジトリなら失敗して無視)
+        let _ = git(work, Some(token), &["pull", "-q", "--rebase", "origin", "main"]);
     }
-    git(&work, None, &["config", "core.longpaths", "true"])?;
+    git(work, None, &["config", "core.longpaths", "true"])?;
 
     let mut rep = Report::default();
     let mut used = HashSet::new();
@@ -140,13 +202,13 @@ pub fn run_once(cfg: &Config) -> Result<Report> {
         let l = label(f, &mut used);
         mirror(f, &work.join(&l), cfg, &mut rep)?;
     }
-    git(&work, None, &["add", "-A"])?;
-    if git(&work, None, &["status", "--porcelain"])?.trim().is_empty() {
+    git(work, None, &["add", "-A"])?;
+    if git(work, None, &["status", "--porcelain"])?.trim().is_empty() {
         return Ok(rep);
     }
     let msg = format!("backup: +{} -{}", rep.copied, rep.removed);
     git(
-        &work,
+        work,
         None,
         &[
             "-c", "user.name=open-backup",
@@ -154,7 +216,7 @@ pub fn run_once(cfg: &Config) -> Result<Report> {
             "commit", "-q", "-m", &msg,
         ],
     )?;
-    git(&work, Some(&token), &["push", "-q", "-u", "origin", "main"])?;
+    git(work, Some(token), &["push", "-q", "-u", "origin", "main"])?;
     rep.pushed = true;
     Ok(rep)
 }

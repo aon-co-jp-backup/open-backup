@@ -79,7 +79,7 @@ fn main() -> Result<()> {
         Cmd::Status => {
             println!(
                 "リポジトリ名: {}\n間隔: {}秒\n対象: {:#?}",
-                cfg.repo_name(),
+                cfg.repo_name_n(1),
                 cfg.interval_secs,
                 cfg.folders
             );

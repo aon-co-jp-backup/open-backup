@@ -74,7 +74,10 @@ open-backup once              # 1回だけ実行
 open-backup run               # 常駐(変更検知 + 定期実行)
 ```
 
-- 保存先: ログインしたアカウントの `open-backup-<端末名>`(非公開)。
+- 保存先: ログインしたアカウントの `open-backup-<端末名>-0001`(非公開)。初回に `-0001`(現用)と `-0002`(次用)を同時に作ります。
+- 容量: 現用が上限(既定4000MB)の9割に達すると、あらかじめ作ってある次用へ切り替えて全データをそこから保存し、さらに次の新規リポジトリを自動で作ります。古いリポジトリは過去分としてそのまま残ります。
+  Rollover: when the active repo reaches 90% of its limit (default 4000 MB), backups switch to the pre-created next repo and a new spare is created automatically. Old repos are kept as history.
+- ※ Fine-grained トークンを1リポジトリに限定している場合、自動作成には使えません(新規作成の権限が必要)。自動で増やすなら、アカウント全体の `Administration: write` を許可したトークンにするか、手動で先に作ってください。
 - アカウントの新規作成は GitHub 側で利用者自身が行います(本ツールは作成しません)。
 - トークンはOSの資格情報ストアに保存し、gitのコマンドラインには出しません。
 - 100MB超のファイルはGitHubの制限により対象外(既定95MB超をスキップ)。

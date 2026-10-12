@@ -15,6 +15,9 @@ pub struct Config {
     /// これを超えるファイルは対象外(GitHub は 100MB 超を拒否する)
     #[serde(default = "default_max_mb")]
     pub max_file_mb: u64,
+    /// 1リポジトリの上限(MB)。これに近づいたら次のリポジトリへ自動で切り替える
+    #[serde(default = "default_max_repo_mb")]
+    pub max_repo_mb: u64,
     /// 除外するディレクトリ名/ファイル名
     #[serde(default = "default_exclude")]
     pub exclude: Vec<String>,
@@ -27,6 +30,9 @@ fn default_interval() -> u64 {
 }
 fn default_max_mb() -> u64 {
     95
+}
+fn default_max_repo_mb() -> u64 {
+    4000 // GitHub の推奨(数GB以内)に余裕を持たせる
 }
 fn default_exclude() -> Vec<String> {
     [".git", "node_modules", "target", "Thumbs.db", "desktop.ini", ".DS_Store"]
@@ -42,6 +48,7 @@ impl Default for Config {
             repo: None,
             interval_secs: default_interval(),
             max_file_mb: default_max_mb(),
+            max_repo_mb: default_max_repo_mb(),
             exclude: default_exclude(),
             client_id: None,
         }
@@ -71,6 +78,10 @@ impl Config {
         std::fs::create_dir_all(p.parent().unwrap())?;
         std::fs::write(p, toml::to_string_pretty(self)?)?;
         Ok(())
+    }
+    /// 世代番号つきのリポジトリ名(例: open-backup-aon-0001)
+    pub fn repo_name_n(&self, n: u32) -> String {
+        format!("{}-{:04}", self.repo_name(), n)
     }
     pub fn repo_name(&self) -> String {
         self.repo.clone().unwrap_or_else(|| {
