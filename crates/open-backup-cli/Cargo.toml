@@ -1,0 +1,11 @@
+[package]
+name = "open-backup"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+open-backup-core = { path = "../open-backup-core" }
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+notify = "6"
