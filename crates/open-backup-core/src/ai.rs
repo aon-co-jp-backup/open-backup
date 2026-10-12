@@ -37,8 +37,13 @@ fn ping(base: &str) -> bool {
 /// AI 分類が有効で、エンジンが使えるときだけ Some。
 pub fn start(cfg: &Config) -> Option<Engine> {
     if !cfg.ai_classify { return None; }
+    // aruaru-llm は端末に1つだけ。既に動いているもの(open-easy-web 管理・標準ポート4600・自前)を
+    // 先に探して共有し、見つからない場合だけ自分用に1つ起動する。いずれも 127.0.0.1 のみ。
+    for port in [cfg.ai_port, 4600, 4611] {
+        let b = format!("http://127.0.0.1:{port}");
+        if ping(&b) { return Some(Engine { child: None, base: b }); }
+    }
     let base = format!("http://127.0.0.1:{}", cfg.ai_port);
-    if ping(&base) { return Some(Engine { child: None, base }); } // 既に起動済み
     let exe = exe_path(cfg)?;
     let child = Command::new(exe)
         .env("ARUARU_LLM_BIND", format!("127.0.0.1:{}", cfg.ai_port))
@@ -68,7 +73,7 @@ fn snippet(p: &Path) -> String {
 fn classify(eng: &Engine, items: &[String]) -> Result<Vec<String>> {
     let r: serde_json::Value = ureq::post(&format!("{}/v1/classify", eng.base))
         .timeout(Duration::from_secs(120))
-        .send_json(serde_json::json!({"items": items, "categories": TOPICS}))?
+        .send_json(serde_json::json!({"items": items, "categories": TOPICS, "tenant": "open-backup"}))?
         .into_json()?;
     let Some(a) = r["results"].as_array() else { bail!("応答が不正") };
     Ok(a.iter().map(|x| x["category"].as_str().unwrap_or("その他").to_string()).collect())
@@ -85,14 +90,31 @@ pub fn save_cache(c: &Cache) {
 }
 
 /// 未分類のファイルを一度に最大 max_new 件まで分類してキャッシュへ入れる。
+/// 32件ずつのまとまりを複数スレッドで同時に投げる(エンジン側も複数リクエストを並行処理)。
 pub fn fill(eng: &Engine, files: &[(String, PathBuf, String)], cache: &mut Cache, max_new: usize) {
     // files: (キャッシュキー, 実パス, 表示パス)
     let todo: Vec<_> = files.iter().filter(|f| !cache.contains_key(&f.0)).take(max_new).collect();
-    for chunk in todo.chunks(32) {
-        let items: Vec<String> = chunk.iter().map(|f| format!("{}\n{}", f.2, snippet(&f.1))).collect();
-        match classify(eng, &items) {
-            Ok(cats) => for (f, c) in chunk.iter().zip(cats) { cache.insert(f.0.clone(), c); },
-            Err(e) => { eprintln!("AI分類を中断(拡張子分類で続行): {e}"); return; }
+    let threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(2).clamp(1, 4);
+    let chunks: Vec<_> = todo.chunks(32).collect();
+    for group in chunks.chunks(threads) {
+        let results: Vec<Option<Vec<String>>> = std::thread::scope(|s| {
+            let hs: Vec<_> = group
+                .iter()
+                .map(|chunk| {
+                    s.spawn(move || {
+                        let items: Vec<String> =
+                            chunk.iter().map(|f| format!("{}\n{}", f.2, snippet(&f.1))).collect();
+                        classify(eng, &items).map_err(|e| eprintln!("AI分類を中断(拡張子分類で続行): {e}")).ok()
+                    })
+                })
+                .collect();
+            hs.into_iter().map(|h| h.join().ok().flatten()).collect()
+        });
+        for (chunk, res) in group.iter().zip(results) {
+            let Some(cats) = res else { return };
+            for (f, c) in chunk.iter().zip(cats) {
+                cache.insert(f.0.clone(), c);
+            }
         }
     }
 }
