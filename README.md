@@ -8,4 +8,4 @@
 - macOS
 - Linux
 - Android(スマートフォン・タブレット)
-- 将来: 追加のプラットフォーム(未定)
+- 将来: iPhone(iOS)
