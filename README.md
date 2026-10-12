@@ -46,6 +46,25 @@ Then look up, via Google or similar, how to create a token with the **minimum pe
 (Hint: create the private destination repository yourself first, then issue a fine-grained token limited to that single repository with "Contents: read and write" only.)
 Never show the token to anyone or paste it into a public repository or chat.
 
+### トークン作成の最低限の説明 / Minimal token instructions
+
+画面の名称は変わることがあります。最新の手順は必ずご自身で検索して確認してください。
+GitHub's UI changes over time. Always confirm the current steps yourself via search.
+
+**日本語**
+1. GitHub にログイン → 右上のアイコン → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token。
+2. Expiration(有効期限)を短めに設定する。
+3. Repository access は **Only select repositories** で、保存先の非公開リポジトリ**1つだけ**を選ぶ。
+4. Repository permissions は **Contents: Read and write** のみ(Metadata: Read-only は自動で付く)。他は付けない。
+5. 生成されたトークンを一度だけ表示されるうちにコピーし、`open-backup login --token` で入力する。
+
+**English**
+1. Log in to GitHub → profile icon → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token.
+2. Set a short Expiration.
+3. Repository access: **Only select repositories**, and pick **only the one** private destination repository.
+4. Repository permissions: **Contents: Read and write** only (Metadata: Read-only is added automatically). Grant nothing else.
+5. Copy the token while it is shown (only once) and enter it with `open-backup login --token`.
+
 ## 使い方 / Usage
 
 ```bash
