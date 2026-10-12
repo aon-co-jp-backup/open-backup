@@ -9,3 +9,4 @@ open-backup-core = { path = "../open-backup-core" }
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 notify = "6"
+serde_json = "1"

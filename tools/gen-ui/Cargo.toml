@@ -1,0 +1,13 @@
+[package]
+name = "open-backup-gen-ui"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# RPoem(兄弟リポジトリ F:\RPoem)に依存するため、ワークスペースには含めない。
+# 生成物 ui/index.html をコミットしておき、CLI は RPoem 無しでビルドできる。
+[workspace]
+
+[dependencies]
+open-runo-crossui = { path = "../../../RPoem/crates/open-runo-crossui" }
+open-runo-view = { path = "../../../RPoem/crates/open-runo-view" }

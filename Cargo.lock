@@ -544,6 +544,7 @@ dependencies = [
  "clap",
  "notify",
  "open-backup-core",
+ "serde_json",
 ]
 
 [[package]]

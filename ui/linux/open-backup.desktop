@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=open-backup
+Exec=sh launch.sh
+Terminal=false
+Categories=Utility;

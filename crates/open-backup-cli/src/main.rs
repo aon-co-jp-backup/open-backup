@@ -1,3 +1,4 @@
+mod serve;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use notify::{RecursiveMode, Watcher};
@@ -35,6 +36,11 @@ enum Cmd {
     Once,
     /// 常駐(変更を検知して自動バックアップ + 定期実行)
     Run,
+    /// 常駐エンジン + 画面(http://127.0.0.1:4620/ui)。変更の監視と定期実行も行う
+    Serve {
+        #[arg(long, default_value_t = 4620)]
+        port: u16,
+    },
 }
 
 fn main() -> Result<()> {
@@ -95,6 +101,7 @@ fn main() -> Result<()> {
             );
         }
         Cmd::Index { folder } => sync::index_only(&cfg, &folder)?,
+        Cmd::Serve { port } => serve::serve(port)?,
         Cmd::Once => report(sync::run_once(&cfg)),
         Cmd::Run => {
             let (tx, rx) = mpsc::channel();
