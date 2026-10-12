@@ -13,6 +13,7 @@ struct Entry {
     size: u64,
     modified: u64,
     category: &'static str,
+    topic: String,
     repo: String,
 }
 
@@ -31,7 +32,7 @@ pub fn category(path: &Path) -> &'static str {
 }
 
 /// 作業コピー全体を走査して索引(jsonl + INDEX.md)を書く。
-pub fn write_index(work: &Path, repo: &str) -> Result<()> {
+pub fn write_index(work: &Path, repo: &str, topics: &std::collections::HashMap<String, String>) -> Result<()> {
     let mut lines = String::new();
     let mut stats: BTreeMap<&'static str, (u64, u64)> = BTreeMap::new();
     for e in WalkDir::new(work)
@@ -52,7 +53,7 @@ pub fn write_index(work: &Path, repo: &str) -> Result<()> {
         let s = stats.entry(cat).or_default();
         s.0 += 1;
         s.1 += md.len();
-        lines.push_str(&serde_json::to_string(&Entry { path: rel, size: md.len(), modified, category: cat, repo: repo.into() })?);
+        lines.push_str(&serde_json::to_string(&Entry { topic: topics.get(&rel).cloned().unwrap_or_default(), path: rel, size: md.len(), modified, category: cat, repo: repo.into() })?);
         lines.push('\n');
     }
     std::fs::create_dir_all(work.join(INDEX_DIR))?;
@@ -78,7 +79,7 @@ mod tests {
         std::fs::write(d.join("docs/a.PDF"), b"x").unwrap();
         std::fs::write(d.join("docs/sub/b.rs"), b"fn main(){}").unwrap();
         std::fs::write(d.join("noext"), b"y").unwrap();
-        write_index(&d, "repo-0001").unwrap();
+        write_index(&d, "repo-0001", &Default::default()).unwrap();
         let j = std::fs::read_to_string(d.join(".open-backup/index.jsonl")).unwrap();
         assert!(j.contains("\"path\":\"docs/a.PDF\"") && j.contains("文書"));
         assert!(j.contains("docs/sub/b.rs") && j.contains("コード"));

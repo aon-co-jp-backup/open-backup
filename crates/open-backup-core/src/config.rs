@@ -23,8 +23,22 @@ pub struct Config {
     pub exclude: Vec<String>,
     /// GitHub OAuth App の client_id(デバイス認可でログインする場合)
     pub client_id: Option<String>,
+    /// 内容による分類(同梱 aruaru-llm を端末内で起動)。既定で有効、使えなければ拡張子分類のみ
+    #[serde(default = "default_true")]
+    pub ai_classify: bool,
+    /// aruaru-llm の実行ファイル(未指定なら open-backup と同じフォルダ)
+    pub ai_llm_exe: Option<PathBuf>,
+    /// 端末内(127.0.0.1)専用のポート
+    #[serde(default = "default_ai_port")]
+    pub ai_port: u16,
 }
 
+fn default_true() -> bool {
+    true
+}
+fn default_ai_port() -> u16 {
+    4611
+}
 fn default_interval() -> u64 {
     600
 }
@@ -51,6 +65,9 @@ impl Default for Config {
             max_repo_mb: default_max_repo_mb(),
             exclude: default_exclude(),
             client_id: None,
+            ai_classify: true,
+            ai_llm_exe: None,
+            ai_port: default_ai_port(),
         }
     }
 }

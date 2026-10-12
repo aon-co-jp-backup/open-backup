@@ -152,12 +152,16 @@ pub fn run_once(cfg: &Config) -> Result<Report> {
     github::ensure_private_repo(&token, &owner, &cfg.repo_name_n(st.active))?;
     github::ensure_private_repo(&token, &owner, &cfg.repo_name_n(st.active + 1))?;
 
+    let eng = crate::ai::start(cfg);
+    if eng.is_none() && cfg.ai_classify {
+        eprintln!("AI分類は利用できません(aruaru-llm 未同梱/起動失敗)。拡張子分類のみで続行します");
+    }
     let mut total = Report::default();
     // 切り替え直後は新しい現用リポジトリへ全データを入れ直す(最大1回)
     for _ in 0..2 {
         let name = cfg.repo_name_n(st.active);
         let work = data_dir()?.join("repos").join(&name);
-        let rep = backup_into(cfg, &token, &owner, &name, &work)?;
+        let rep = backup_into(cfg, &token, &owner, &name, &work, eng.as_ref())?;
         total.copied += rep.copied;
         total.removed += rep.removed;
         total.skipped_large.extend(rep.skipped_large);
@@ -178,7 +182,14 @@ pub fn run_once(cfg: &Config) -> Result<Report> {
     Ok(total)
 }
 
-fn backup_into(cfg: &Config, token: &str, owner: &str, name: &str, work: &Path) -> Result<Report> {
+fn backup_into(
+    cfg: &Config,
+    token: &str,
+    owner: &str,
+    name: &str,
+    work: &Path,
+    eng: Option<&crate::ai::Engine>,
+) -> Result<Report> {
     std::fs::create_dir_all(work)?;
     if !work.join(".git").exists() {
         git(work, None, &["init", "-q", "-b", "main"])?;
@@ -202,7 +213,8 @@ fn backup_into(cfg: &Config, token: &str, owner: &str, name: &str, work: &Path) 
         let l = label(f, &mut used);
         mirror(f, &work.join(&l), cfg, &mut rep)?;
     }
-    crate::index::write_index(work, name)?;
+    let topics = topics_for(work, eng);
+    crate::index::write_index(work, name, &topics)?;
     git(work, None, &["add", "-A"])?;
     if git(work, None, &["status", "--porcelain"])?.trim().is_empty() {
         return Ok(rep);
@@ -220,4 +232,30 @@ fn backup_into(cfg: &Config, token: &str, owner: &str, name: &str, work: &Path) 
     git(work, Some(token), &["push", "-q", "-u", "origin", "main"])?;
     rep.pushed = true;
     Ok(rep)
+}
+
+/// 内容による分類(トピック)。エンジンが無ければ空(拡張子分類のみ)。
+fn topics_for(work: &Path, eng: Option<&crate::ai::Engine>) -> std::collections::HashMap<String, String> {
+    let mut out = std::collections::HashMap::new();
+    let Some(eng) = eng else { return out };
+    let mut cache = crate::ai::load_cache();
+    let mut files = vec![];
+    for e in WalkDir::new(work)
+        .into_iter()
+        .filter_entry(|e| e.depth() == 0 || (e.file_name() != ".git" && e.file_name() != crate::index::INDEX_DIR))
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+    {
+        let Ok(md) = e.metadata() else { continue };
+        let rel = e.path().strip_prefix(work).map(|p| p.to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/")).unwrap_or_default();
+        if rel == "INDEX.md" { continue }
+        let mt = md.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_secs()).unwrap_or(0);
+        files.push((format!("{rel}|{}|{mt}", md.len()), e.path().to_path_buf(), rel));
+    }
+    crate::ai::fill(eng, &files, &mut cache, 500);
+    crate::ai::save_cache(&cache);
+    for (k, _, rel) in files {
+        if let Some(t) = cache.get(&k) { out.insert(rel, t.clone()); }
+    }
+    out
 }

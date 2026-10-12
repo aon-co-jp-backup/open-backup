@@ -88,3 +88,17 @@ open-backup run               # 常駐(変更検知 + 定期実行)
 ## ライセンス / License
 
 MIT OR Apache-2.0
+
+## AI による内容分類 / AI content classification
+
+**日本語**: 拡張子による分類に加え、同梱の `aruaru-llm`(端末内 `127.0.0.1` のみで動作)がファイルの名前と冒頭の内容から
+「仕事・お金・写真・学習・開発・契約・設定・趣味・その他」のトピックを付け、索引(`topic`)に記録します。
+内容は外部へ送信しません(送信先は常にループバック固定)。`aruaru-llm` が無い・起動できない場合は拡張子分類だけで続行します。
+`aruaru-llm` の導入・起動の管理は [open-easy-web](https://github.com/aon-co-jp/open-easy-web) と連携する方針です(未実装)。
+無効にするには `config.toml` に `ai_classify = false`。
+
+**English**: In addition to extension-based categories, the bundled `aruaru-llm` (running only on-device at `127.0.0.1`) assigns a topic
+(work / money / photos / study / dev / contracts / system / hobby / other) from each file's name and first bytes, recorded as `topic` in the index.
+Nothing is sent off the device (the endpoint is always loopback). If `aruaru-llm` is missing or fails to start, only extension categories are used.
+Installing and supervising `aruaru-llm` is planned to be handled together with open-easy-web (not implemented yet).
+Disable with `ai_classify = false` in `config.toml`.
