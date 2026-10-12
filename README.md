@@ -108,4 +108,6 @@ Disable with `ai_classify = false` in `config.toml`.
 - 実機(Windows)で、テスト用の非公開リポジトリへ push・増分(変更/削除)・自動切り替えを確認。
 - 確認で見つけて直した点: 上限の計算が MB の整数で切り捨てられていた / データ自体が上限を超えると毎回切り替わっていた(警告して現状維持に変更) / GitHub の二次レート制限で次のリポジトリを作れない場合は切り替えを見送る。
 - 切り替えの再確認: 修正後、上限超過で1回だけ次のリポジトリへ切り替わり、全データが新しいリポジトリへ入り、予備が自動作成されることを確認。
-- 未確認: macOS・Linux・Android・iPhone、画面(RPoem)。`.github/workflows/ci.yml` で3OSのビルドを用意したが、GitHub アカウントの支払い設定の問題で Actions が起動できていない(支払い設定を直せば検証できる)。Windows からのクロスビルドは C コンパイラ(ring)が無く不可。
+- Linux: WSL(Ubuntu)で release ビルドとテストが成功、`status` コマンドの起動も確認。
+- macOS: zig を C コンパイラにして `aarch64-apple-darwin` 向けの `cargo check` が成功(リンクと実行は未確認。SDK は Apple のライセンス上、Mac または GitHub の macOS ランナーで行う)。
+- 未確認: macOS の実行・Android・iPhone、画面(RPoem)。`.github/workflows/ci.yml` で3OSのビルドを用意したが、GitHub アカウントの支払い設定の問題で Actions が起動できていない(支払い設定を直せば検証できる)。Windows からのクロスビルドは C コンパイラ(ring)が無く不可。
