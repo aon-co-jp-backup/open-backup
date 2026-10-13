@@ -25,6 +25,7 @@ input{font:inherit;min-height:44px;width:100%;border-radius:10px;border:1px soli
 #bar{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line)}
 #bar button{display:block;width:100%;max-width:720px;margin:0 auto;min-height:52px;background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
 #bar button:disabled{opacity:.6}
+.guide{margin-top:10px;font-size:.9rem}.guide summary{cursor:pointer;font-weight:600;min-height:32px}.guide ol{padding-left:1.2rem}.guide li{margin:6px 0}.guide a{color:var(--acc);overflow-wrap:anywhere}.guide code{background:var(--bg);padding:1px 6px;border-radius:6px;overflow-wrap:anywhere}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.chips button{min-height:40px;font-size:.9rem}
 #off{display:none;border:1px solid var(--ng);border-radius:10px;padding:10px 12px;margin:12px 0}"#;
 
@@ -40,7 +41,7 @@ function render(s){
   $("loginbox").hidden=!!s.login;
   const sg=$("sugg");sg.textContent="";
   (s.suggested||[]).forEach(f=>{const b=document.createElement("button");b.textContent="+ "+f.split(/[\\/]/).pop();b.title=f;b.onclick=async()=>{try{render(await api("/add",{folder:f}));}catch(e){err(e);}};sg.appendChild(b);});
-  $("repo").textContent=s.repo+"(非公開 / private)";
+  $("repo").textContent=s.repo+"(非公開 / private)";$("gname").textContent=s.repo;
   const l=$("folders");l.textContent="";
   if(!s.folders.length){const d=document.createElement("div");d.className="row";d.textContent="対象フォルダがありません / No folders yet";l.appendChild(d);}
   s.folders.forEach(f=>{const d=document.createElement("div");d.className="row";const sp=document.createElement("span");sp.textContent=f;const b=document.createElement("button");b.className="x";b.textContent="×";b.setAttribute("aria-label","削除 / remove");b.onclick=async()=>{try{render(await api("/remove",{folder:f}));}catch(e){err(e);}};d.append(sp,b);l.appendChild(d);});
@@ -76,6 +77,31 @@ fn root() -> VNode {
                     h("div").attr("class", "add")
                         .child(h("input").attr("id", "tok").attr("type", "password").attr("placeholder", "ghp_… / github_pat_…").attr("autocomplete", "off").attr("spellcheck", "false").build())
                         .child(h("button").attr("id", "loginb").child(txt("ログイン / Log in")).build())
+                        .build(),
+                )
+                .child(
+                    h("details").attr("class", "guide")
+                        .child(h("summary").child(txt("はじめての方へ(GitHub のアカウントが無い方も) / New here? (no GitHub account yet)")).build())
+                        .child(
+                            h("ol")
+                                .child(h("li")
+                                    .child(txt("GitHub のアカウントが無い場合は、無料で作ります。アカウントの作成とメールアドレスの確認は、ご自身で GitHub の画面で行います(このアプリは代わりに作れません)。 / If you have no GitHub account, create a free one. You sign up and confirm your email yourself on GitHub; this app cannot do it for you. "))
+                                    .child(h("a").attr("href", "https://github.com/signup").attr("target", "_blank").attr("rel", "noopener").child(txt("github.com/signup")).build())
+                                    .build())
+                                .child(h("li")
+                                    .child(txt("保存先の非公開(Private)リポジトリを作ります。名前は、下の「アカウント・保存先」に出ている名前にしてください: / Create a private repository named exactly as shown under \"Account & destination\" below: "))
+                                    .child(h("code").attr("id", "gname").build())
+                                    .child(txt(" (容量がいっぱいになったとき自動で切り替えるため、末尾が -0002 のリポジトリも作っておくと安心です / also create the -0002 one so it can switch automatically when the first fills up) "))
+                                    .child(h("a").attr("href", "https://github.com/new").attr("target", "_blank").attr("rel", "noopener").child(txt("github.com/new")).build())
+                                    .build())
+                                .child(h("li")
+                                    .child(txt("そのリポジトリだけに「Contents: 読み書き(Read and write)」を許可した Fine-grained トークンを作ります(有効期限は短めに)。 / Create a fine-grained token limited to those repositories with \"Contents: Read and write\" only (short expiry). "))
+                                    .child(h("a").attr("href", "https://github.com/settings/personal-access-tokens/new").attr("target", "_blank").attr("rel", "noopener").child(txt("github.com/settings/personal-access-tokens/new")).build())
+                                    .build())
+                                .child(h("li").child(txt("作ったトークンを上の欄に貼り付けて「ログイン」。トークンは他人に見せないでください。 / Paste the token above and press Log in. Never share it.")).build())
+                                .build(),
+                        )
+                        .child(h("p").attr("class", "sub").child(txt("GitHub は大容量のバックアップ向けではありません。1ファイルは 100MB(このアプリは 40MB)まで、リポジトリ全体は数GBまでが目安です。 / GitHub is not meant for huge backups: files up to 100 MB (this app: 40 MB) and a few GB per repository.")).build())
                         .build(),
                 )
                 .build(),

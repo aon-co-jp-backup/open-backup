@@ -51,8 +51,18 @@ public class MainActivity extends Activity {
 
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
-                // 端末の中のエンジン以外へは、WebView では行かない
-                return !"127.0.0.1".equals(r.getUrl().getHost());
+                // 端末の中のエンジン以外(GitHub の案内リンクなど)は、WebView ではなく、端末のブラウザで開く
+                if ("127.0.0.1".equals(r.getUrl().getHost())) {
+                    return false;
+                }
+                String scheme = r.getUrl().getScheme();
+                if ("https".equals(scheme)) {
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, r.getUrl()));
+                    } catch (Exception ignored) {
+                    }
+                }
+                return true;
             }
         });
         setContentView(web);
