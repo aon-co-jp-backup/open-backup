@@ -52,15 +52,16 @@ fn run_backup(last: &Shared) {
 
 /// 画面は数秒おきに状態を取るので、GitHub への問い合わせは60秒キャッシュする。
 fn cached_login() -> Option<String> {
-    static CACHE: Mutex<Option<(Instant, Option<String>)>> = Mutex::new(None);
+    static CACHE: Mutex<Option<(Instant, Option<String>, u64)>> = Mutex::new(None);
+    let epoch = LOGIN_EPOCH.load(std::sync::atomic::Ordering::SeqCst);
     let mut c = CACHE.lock().unwrap();
-    if let Some((t, v)) = c.as_ref() {
-        if t.elapsed() < Duration::from_secs(60) {
+    if let Some((t, v, e)) = c.as_ref() {
+        if t.elapsed() < Duration::from_secs(60) && *e == epoch {
             return v.clone();
         }
     }
     let v = auth::token().ok().and_then(|t| github::login_name(&t).ok());
-    *c = Some((Instant::now(), v.clone()));
+    *c = Some((Instant::now(), v.clone(), epoch));
     v
 }
 
@@ -73,6 +74,7 @@ fn status_json(last: &Shared, port: u16) -> String {
         "port": port,
         "login": login,
         "repo": cfg.repo_name_n(1),
+        "suggested": suggested_folders(&cfg),
         "folders": cfg.folders.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
         "interval_secs": cfg.interval_secs,
         "ai": cfg.ai_classify,
@@ -147,6 +149,28 @@ fn handle(mut s: TcpStream, last: Shared, port: u16) {
         ("GET", "/ui") | ("GET", "/") => respond(&mut s, "200 OK", "text/html", UI_HTML),
         ("GET", "/health") => respond(&mut s, "200 OK", "text/plain", "ok"),
         ("GET", "/status") => respond(&mut s, "200 OK", "application/json", &status_json(&last, port)),
+        ("POST", "/login") => {
+            // 画面から貼り付けたトークンを確かめて保存する(値は返さない・ログにも出さない)
+            let tok = serde_json::from_slice::<serde_json::Value>(&body).ok().and_then(|v| v["token"].as_str().map(|s| s.trim().to_string())).unwrap_or_default();
+            if tok.len() < 20 {
+                return respond(&mut s, "400 Bad Request", "application/json", "{\"error\":\"トークンが短すぎます / token too short\"}");
+            }
+            match github::login_name(&tok) {
+                Ok(name) if !name.is_empty() => match auth::store_token(&tok) {
+                    Ok(()) => {
+                        reset_login_cache();
+                        respond(&mut s, "200 OK", "application/json", &status_json(&last, port));
+                    }
+                    Err(_) => respond(&mut s, "500 Internal Server Error", "application/json", "{\"error\":\"トークンを保存できませんでした / could not store the token\"}"),
+                },
+                _ => respond(&mut s, "401 Unauthorized", "application/json", "{\"error\":\"このトークンではログインできません(権限・有効期限を確認) / token rejected\"}"),
+            }
+        }
+        ("POST", "/logout") => {
+            let _ = auth::logout();
+            reset_login_cache();
+            respond(&mut s, "200 OK", "application/json", &status_json(&last, port));
+        }
         ("POST", "/run") => {
             let l = last.clone();
             std::thread::spawn(move || run_backup(&l));
@@ -228,4 +252,25 @@ pub fn serve(port: u16) -> Result<()> {
         std::thread::spawn(move || handle(conn, l, port));
     }
     Ok(())
+}
+
+/// ログイン状態の控えを捨てる(ログイン・ログアウトの直後に、画面へすぐ反映するため)。
+fn reset_login_cache() {
+    // `cached_login` の控えは60秒。ログイン操作の直後だけ、すぐ取り直したい。
+    LOGIN_EPOCH.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+}
+static LOGIN_EPOCH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// 画面の「追加」ボタン用の、よく使うフォルダ(存在して、まだ対象に入っていないもの)。
+fn suggested_folders(cfg: &Config) -> Vec<String> {
+    let mut v: Vec<PathBuf> = vec![];
+    #[cfg(target_os = "android")]
+    for n in ["DCIM", "Pictures", "Documents", "Download", "Movies", "Music"] {
+        v.push(PathBuf::from("/storage/emulated/0").join(n));
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        v.extend([dirs::document_dir(), dirs::picture_dir(), dirs::desktop_dir(), dirs::video_dir(), dirs::audio_dir()].into_iter().flatten());
+    }
+    v.into_iter().filter(|p| p.is_dir() && !cfg.folders.contains(p)).map(|p| p.display().to_string()).collect()
 }

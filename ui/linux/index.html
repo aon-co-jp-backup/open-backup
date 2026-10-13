@@ -26,9 +26,10 @@ input{font:inherit;min-height:44px;width:100%;border-radius:10px;border:1px soli
 #bar{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line)}
 #bar button{display:block;width:100%;max-width:720px;margin:0 auto;min-height:52px;background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
 #bar button:disabled{opacity:.6}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.chips button{min-height:40px;font-size:.9rem}
 #off{display:none;border:1px solid var(--ng);border-radius:10px;padding:10px 12px;margin:12px 0}</style></head>
 <body>
-<div id="open-runo-root"><main><h1>open-backup <small id="ver"></small></h1><p class="sub">端末のデータを、あなたのGitHub非公開リポジトリへ自動バックアップ / Auto-backup to your private GitHub repository</p><div id="off">エンジンに接続できません。open-backup serve を起動してください。 / Cannot reach the engine. Start `open-backup serve`.</div><div class="warn">⚠ 保存先のGitHubリポジトリは必ず非公開(Private)にしてください。公開すると全データが世界中に見えます。 / Keep the GitHub repository PRIVATE. Making it public exposes all your data.</div><div class="card"><h2>アカウント・保存先 / Account &amp; destination</h2><div class="row"><span id="login"></span></div><div class="row"><span id="repo"></span></div></div><div class="card"><h2>バックアップするフォルダ / Folders</h2><div id="folders"></div><div class="add"><input id="addf" placeholder="フォルダのパス / Folder path" autocomplete="off" spellcheck="false" /><button id="addb">追加 / Add</button></div></div><div class="card"><h2>直近の結果 / Last result</h2><div id="res"></div></div><div id="bar"><button id="run">今すぐバックアップ / Back up now</button></div></main></div>
+<div id="open-runo-root"><main><h1>open-backup <small id="ver"></small></h1><p class="sub">端末のデータを、あなたのGitHub非公開リポジトリへ自動バックアップ / Auto-backup to your private GitHub repository</p><div id="off">エンジンに接続できません。open-backup serve を起動してください。 / Cannot reach the engine. Start `open-backup serve`.</div><div class="warn">⚠ 保存先のGitHubリポジトリは必ず非公開(Private)にしてください。公開すると全データが世界中に見えます。 / Keep the GitHub repository PRIVATE. Making it public exposes all your data.</div><div class="card" id="loginbox" hidden=""><h2>GitHub にログイン / Log in to GitHub</h2><p class="sub">最小権限のトークン(保存先の非公開リポジトリ1つだけに「Contents: 読み書き」)を、ご自身で作って貼り付けてください。作り方は README を参照。 / Create a minimal-permission token yourself (Contents: read &amp; write on the one private repository) and paste it here. See the README.</p><div class="add"><input id="tok" type="password" placeholder="ghp_… / github_pat_…" autocomplete="off" spellcheck="false" /><button id="loginb">ログイン / Log in</button></div></div><div class="card"><h2>アカウント・保存先 / Account &amp; destination</h2><div class="row"><span id="login"></span></div><div class="row"><span id="repo"></span></div></div><div class="card"><h2>バックアップするフォルダ / Folders</h2><div id="folders"></div><div id="sugg" class="chips"></div><div class="add"><input id="addf" placeholder="フォルダのパス / Folder path" autocomplete="off" spellcheck="false" /><button id="addb">追加 / Add</button></div></div><div class="card"><h2>直近の結果 / Last result</h2><div id="res"></div></div><div id="bar"><button id="run">今すぐバックアップ / Back up now</button></div></main></div>
 <script>(()=>{
 const $=i=>document.getElementById(i);
 const BASE="";
@@ -38,6 +39,9 @@ function render(s){
   $("off").style.display="none";
   $("ver").textContent="v"+s.version;
   $("login").textContent=s.login?("GitHub: "+s.login):"GitHub: 未ログイン / not logged in (open-backup login)";
+  $("loginbox").hidden=!!s.login;
+  const sg=$("sugg");sg.textContent="";
+  (s.suggested||[]).forEach(f=>{const b=document.createElement("button");b.textContent="+ "+f.split(/[\\/]/).pop();b.title=f;b.onclick=async()=>{try{render(await api("/add",{folder:f}));}catch(e){err(e);}};sg.appendChild(b);});
   $("repo").textContent=s.repo+"(非公開 / private)";
   const l=$("folders");l.textContent="";
   if(!s.folders.length){const d=document.createElement("div");d.className="row";d.textContent="対象フォルダがありません / No folders yet";l.appendChild(d);}
@@ -51,6 +55,8 @@ async function tick(){try{render(await api("/status"));}catch(e){$("off").style.
 $("run").onclick=async()=>{try{await api("/run",{});tick();}catch(e){err(e);}};
 $("addb").onclick=async()=>{const v=$("addf").value.trim();if(!v)return;try{render(await api("/add",{folder:v}));$("addf").value="";}catch(e){err(e);}};
 $("addf").addEventListener("keydown",e=>{if(e.key==="Enter")$("addb").click();});
+$("loginb").onclick=async()=>{const v=$("tok").value.trim();if(!v)return;try{render(await api("/login",{token:v}));$("tok").value="";}catch(e){err(e);}};
+$("tok").addEventListener("keydown",e=>{if(e.key==="Enter")$("loginb").click();});
 tick();setInterval(tick,3000);
 })();</script>
 </body>

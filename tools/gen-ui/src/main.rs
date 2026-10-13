@@ -25,6 +25,7 @@ input{font:inherit;min-height:44px;width:100%;border-radius:10px;border:1px soli
 #bar{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line)}
 #bar button{display:block;width:100%;max-width:720px;margin:0 auto;min-height:52px;background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
 #bar button:disabled{opacity:.6}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.chips button{min-height:40px;font-size:.9rem}
 #off{display:none;border:1px solid var(--ng);border-radius:10px;padding:10px 12px;margin:12px 0}"#;
 
 const JS: &str = r#"(()=>{
@@ -36,6 +37,9 @@ function render(s){
   $("off").style.display="none";
   $("ver").textContent="v"+s.version;
   $("login").textContent=s.login?("GitHub: "+s.login):"GitHub: 未ログイン / not logged in (open-backup login)";
+  $("loginbox").hidden=!!s.login;
+  const sg=$("sugg");sg.textContent="";
+  (s.suggested||[]).forEach(f=>{const b=document.createElement("button");b.textContent="+ "+f.split(/[\\/]/).pop();b.title=f;b.onclick=async()=>{try{render(await api("/add",{folder:f}));}catch(e){err(e);}};sg.appendChild(b);});
   $("repo").textContent=s.repo+"(非公開 / private)";
   const l=$("folders");l.textContent="";
   if(!s.folders.length){const d=document.createElement("div");d.className="row";d.textContent="対象フォルダがありません / No folders yet";l.appendChild(d);}
@@ -49,6 +53,8 @@ async function tick(){try{render(await api("/status"));}catch(e){$("off").style.
 $("run").onclick=async()=>{try{await api("/run",{});tick();}catch(e){err(e);}};
 $("addb").onclick=async()=>{const v=$("addf").value.trim();if(!v)return;try{render(await api("/add",{folder:v}));$("addf").value="";}catch(e){err(e);}};
 $("addf").addEventListener("keydown",e=>{if(e.key==="Enter")$("addb").click();});
+$("loginb").onclick=async()=>{const v=$("tok").value.trim();if(!v)return;try{render(await api("/login",{token:v}));$("tok").value="";}catch(e){err(e);}};
+$("tok").addEventListener("keydown",e=>{if(e.key==="Enter")$("loginb").click();});
 tick();setInterval(tick,3000);
 })();"#;
 
@@ -63,6 +69,18 @@ fn root() -> VNode {
         .child(h("div").attr("id", "off").child(txt("エンジンに接続できません。open-backup serve を起動してください。 / Cannot reach the engine. Start `open-backup serve`.")).build())
         .child(h("div").attr("class", "warn").child(txt("⚠ 保存先のGitHubリポジトリは必ず非公開(Private)にしてください。公開すると全データが世界中に見えます。 / Keep the GitHub repository PRIVATE. Making it public exposes all your data.")).build())
         .child(
+            h("div").attr("class", "card").attr("id", "loginbox").attr("hidden", "")
+                .child(h("h2").child(txt("GitHub にログイン / Log in to GitHub")).build())
+                .child(h("p").attr("class", "sub").child(txt("最小権限のトークン(保存先の非公開リポジトリ1つだけに「Contents: 読み書き」)を、ご自身で作って貼り付けてください。作り方は README を参照。 / Create a minimal-permission token yourself (Contents: read & write on the one private repository) and paste it here. See the README.")).build())
+                .child(
+                    h("div").attr("class", "add")
+                        .child(h("input").attr("id", "tok").attr("type", "password").attr("placeholder", "ghp_… / github_pat_…").attr("autocomplete", "off").attr("spellcheck", "false").build())
+                        .child(h("button").attr("id", "loginb").child(txt("ログイン / Log in")).build())
+                        .build(),
+                )
+                .build(),
+        )
+        .child(
             h("div").attr("class", "card")
                 .child(h("h2").child(txt("アカウント・保存先 / Account & destination")).build())
                 .child(h("div").attr("class", "row").child(h("span").attr("id", "login").build()).build())
@@ -73,6 +91,7 @@ fn root() -> VNode {
             h("div").attr("class", "card")
                 .child(h("h2").child(txt("バックアップするフォルダ / Folders")).build())
                 .child(h("div").attr("id", "folders").build())
+                .child(h("div").attr("id", "sugg").attr("class", "chips").build())
                 .child(
                     h("div").attr("class", "add")
                         .child(h("input").attr("id", "addf").attr("placeholder", "フォルダのパス / Folder path").attr("autocomplete", "off").attr("spellcheck", "false").build())
