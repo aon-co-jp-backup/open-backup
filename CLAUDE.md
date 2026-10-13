@@ -12,3 +12,13 @@
 - テスト残骸: `aon-co-jp-backup` に非公開の `open-backup-selftest-0001〜0011`。ユーザーが不要時に削除(Claudeは削除しない)。
 - 注意: リポジトリ作成の連打は二次レート制限(403)。テストは少数ずつ。Windowsで `Set-Content` はTOML等の文字コードを壊すので使わない。
 - 再開手順: `F:\open-backup` で `cargo test`、WSLでLinuxビルド(`CARGO_TARGET_DIR=$HOME/ob-target`)。
+
+## HANDOFF(2026-10-13 追記)
+
+- **Android アプリ完成(エミュレーターで通し確認)**: `android/`(WebView + 前面サービス `EngineService` が `libopen_backup.so`=Rustのエンジンを起動)。git が無い端末のため、**GitHub Data API だけで保存する経路**(`crates/open-backup-core/src/apisync.rs`)を追加。`backend = "auto"`(git があれば git、Android は常に API)。
+  - `git2` ではなくこの方法にした理由: Android 向けの OpenSSL が、この PC に `perl`/`make` が無くビルドできないため。API の経路は ureq+rustls だけで、Android(arm64・x86_64)の `cargo ndk` ビルドが通る。
+  - 状態: `api-state/<repo>.json`(前回のコミット・リポジトリの木・ファイルのSHAの控え)。リポジトリの先頭が自分の記録と違えば、木を取り直して基準にする。空のリポジトリは Contents API で最初のコミットを作る(Git Data API は空のリポジトリで使えない)。
+  - トークン: デスクトップは OS の資格情報ストア(読み戻しで確認)、無ければ/Android はデータ領域の `token` ファイル(0600)。`OPEN_BACKUP_HOME` で設定・データの置き場所を1か所にできる(Androidは `filesDir/ob`)。
+  - エンジンに `/login` `/logout`、画面にログイン欄とおすすめフォルダのボタン。
+- **試験**: Windows で API 経路(初回 → 変更なし → 変更+削除+追加)、Android x86_64 エミュレーター(Android 16)で通し。**未確認**: 実機・arm64 の実行、APK のリリース署名、iPhone、macOS の実行、3OS の CI(支払い設定)、AI 分類(Android には `aruaru-llm` が無いので、拡張子の分類だけ)。
+- 再開: `android\build-android.ps1`(Gradle は `~\.gradle\wrapper\dists` のものを `-Gradle` で指定。JDK は Android Studio の `jbr`)。エミュレーターは `Pixel_9_Pro`(x86_64)。**ユーザーの実機が adb につながっていることがある(ZY22…)ので、`-s emulator-5554` を必ず付ける**。PowerShell の `Remove-Item` は、F: のパスと同じ命令にあると保護で止まる(絶対パスで分けるか、`[IO.File]::Delete`)。

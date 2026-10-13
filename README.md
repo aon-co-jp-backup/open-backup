@@ -31,7 +31,8 @@ Rust のみで実装し、画面は [RPoem](https://github.com/aon-co-jp/RPoem) 
 |---|---|---|
 | `crates/open-backup-core` | OS非依存のコア(設定・GitHub認証・非公開リポジトリ作成・ミラー/commit/push) | 実装済み |
 | `crates/open-backup-cli` (`open-backup`) | デスクトップ向けの常駐CLI(フォルダ変更の監視+定期実行) | 実装済み(Windowsでビルド確認) |
-| 画面(RPoem crossui) | Windows/macOS/Linux/Android 向けのUI | 未着手 |
+| 画面(RPoem crossui) | Windows/macOS/Linux/Android 向けのUI(`tools/gen-ui` → `ui/`、エンジンが `/ui` で配信) | 実装済み(Windows と Android エミュレーターで確認) |
+| Android アプリ | `android/`(WebView + 前面サービスで Rust のエンジンを起動。**git 不要**、GitHub API だけで保存) | 実装済み(エミュレーターで通し確認。実機は未確認) |
 | iPhone | 将来 | 未着手 |
 
 ## 事前準備(利用者の自己責任で) / Before you start (your own responsibility)
@@ -118,3 +119,21 @@ Disable with `ai_classify = false` in `config.toml`.
 画面は [RPoem](https://github.com/aon-co-jp/RPoem) の `open-runo-crossui` から全OS共通で生成(`tools/gen-ui`、生成物は `ui/` にコミット済み。RPoemが無くてもCLIはビルドできる)。
 Windows/macOS/Linux は `ui/<os>/launch.*`、Android は `ui/android/`(WebViewシェルが `http://127.0.0.1:4620/ui` を読み込む)。
 確認済み: 画面からのフォルダ追加と「今すぐバックアップ」でGitHubへpush、スマホ縦横・タブレット・ダーク・文字拡大で横スクロールなし・下部ボタン固定。
+
+## 保存方法(git と GitHub API) / Backends: git and the GitHub API
+
+**日本語**: 既定(`backend = "auto"`)では、`git` コマンドがあれば `git` で、無ければ **GitHub API だけ**(Rust のみ。Android はこちら)で保存します。どちらも同じ結果(非公開リポジトリの中の、元のフォルダ構造のファイル+`INDEX.md`)になります。
+API の経路は、ファイルごとに git の blob のハッシュ(SHA-1)を求め、リポジトリの現在の木と比べて**違うものだけ**を送ります(中断しても、別の端末から続けても、重複して送りません)。元で消えたファイルは木から外します(履歴には残ります)。1ファイルは 40MB まで(API の制限に余裕を持たせた値)。GitHub の二次レート制限に配慮して、1ファイルごとに約 0.7 秒あけます(最初の全量の保存は、ファイルが多いと時間がかかります)。
+**English**: By default (`backend = "auto"`) it uses `git` when available, otherwise **only the GitHub API** (pure Rust; this is what Android uses). Both give the same result: your original folder layout plus `INDEX.md` in a private repository. The API path hashes every file like git does (SHA-1 blob), compares it with the repository's current tree and uploads **only what differs** (so interrupted runs and other devices never cause duplicates); deleted files are removed from the tree (history is kept). Files up to 40 MB; ~0.7 s between uploads to respect GitHub's secondary rate limit (the first full backup of many files takes a while).
+
+## Android
+
+```
+powershell -ExecutionPolicy Bypass -File android\build-android.ps1     # エンジン(arm64・x86_64)+ APK を作る / builds the engine and the APK
+```
+
+- アプリは、画面(WebView)と、エンジンを動かし続ける前面サービスだけです。エンジンは `lib*.so` として同梱した Rust の実行ファイルで、アプリ専用の領域(`filesDir/ob`)に設定とトークンを置きます(自分だけが読める権限)。
+- 端末内のフォルダ(写真・文書)を読むため、初回に「すべてのファイルへのアクセス」の許可を案内します。画面の「おすすめフォルダ」(DCIM・Pictures・Documents・Download …)のボタンで追加できます。
+- トークンは、画面の「GitHub にログイン」欄に貼り付けます(作り方は上の「事前準備」)。
+- *The app is only a WebView plus a foreground service that keeps the engine running. The engine is a Rust executable shipped as `lib*.so`; its config and token live in the app-private directory. On first launch it asks for "All files access" (to read photos/documents by path); quick-add buttons offer DCIM, Pictures, Documents, Download… Paste your token in the "Log in to GitHub" card.*
+- 確認済み(Android 16 / x86_64 エミュレーター): 起動 → エンジン起動 → ログイン → `/storage/emulated/0/Documents` のフォルダを追加 → 「今すぐバックアップ」で、`a.txt` と 700KB の `photo.jpg` が非公開リポジトリに入る。**実機・arm64 の実行は未確認**(arm64 のエンジンのビルドは成功)。
