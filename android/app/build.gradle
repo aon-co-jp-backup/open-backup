@@ -1,0 +1,34 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'tokyo.aon.openbackup'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'tokyo.aon.openbackup'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '0.1.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    // エンジン(Rust の実行ファイル)を lib*.so として同梱し、アプリのネイティブライブラリの置き場所から直接起動する
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+            keepDebugSymbols += ['**/*.so']
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
