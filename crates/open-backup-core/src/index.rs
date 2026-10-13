@@ -31,10 +31,43 @@ pub fn category(path: &Path) -> &'static str {
     }
 }
 
-/// 作業コピー全体を走査して索引(jsonl + INDEX.md)を書く。
-pub fn write_index(work: &Path, repo: &str, topics: &std::collections::HashMap<String, String>) -> Result<()> {
+/// 索引に載せる1ファイルの情報(パスは `/` 区切りの、リポジトリの中のパス)。
+pub struct FileRec {
+    pub rel: String,
+    pub size: u64,
+    pub modified: u64,
+}
+
+/// 索引(`index.jsonl` と `INDEX.md` の中身)をメモリ上で作る。作業フォルダの無い保存方法(GitHub API)でも使う。
+pub fn render(recs: &[FileRec], repo: &str, topics: &std::collections::HashMap<String, String>) -> Result<(String, String)> {
     let mut lines = String::new();
     let mut stats: BTreeMap<&'static str, (u64, u64)> = BTreeMap::new();
+    for r in recs {
+        let cat = category(Path::new(&r.rel));
+        let s = stats.entry(cat).or_default();
+        s.0 += 1;
+        s.1 += r.size;
+        lines.push_str(&serde_json::to_string(&Entry {
+            topic: topics.get(&r.rel).cloned().unwrap_or_default(),
+            path: r.rel.clone(),
+            size: r.size,
+            modified: r.modified,
+            category: cat,
+            repo: repo.into(),
+        })?);
+        lines.push('\n');
+    }
+    let mut md = format!("# バックアップ索引 / Backup index\n\nリポジトリ / repo: `{repo}`\n\n| カテゴリ / Category | 件数 / Files | 容量 / Size (MB) |\n|---|---|---|\n");
+    for (c, (n, sz)) in stats {
+        md.push_str(&format!("| {c} | {n} | {} |\n", sz / (1024 * 1024)));
+    }
+    md.push_str("\n全ファイルの一覧: `.open-backup/index.jsonl`(1行1ファイル)\n");
+    Ok((lines, md))
+}
+
+/// 作業コピー全体を走査して索引(jsonl + INDEX.md)を書く。
+pub fn write_index(work: &Path, repo: &str, topics: &std::collections::HashMap<String, String>) -> Result<()> {
+    let mut recs = vec![];
     for e in WalkDir::new(work)
         .into_iter()
         .filter_entry(|e| e.depth() == 0 || (e.file_name() != ".git" && e.file_name() != INDEX_DIR))
@@ -42,27 +75,16 @@ pub fn write_index(work: &Path, repo: &str, topics: &std::collections::HashMap<S
         .filter(|e| e.file_type().is_file())
     {
         let Ok(md) = e.metadata() else { continue };
-        let rel = e.path().strip_prefix(work)?.to_string_lossy().replace('\\', "/");
+        let rel = e.path().strip_prefix(work)?.to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/");
         if rel == "INDEX.md" {
             continue;
         }
-        let cat = category(e.path());
-        let modified = md.modified().ok()
-            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_secs()).unwrap_or(0);
-        let s = stats.entry(cat).or_default();
-        s.0 += 1;
-        s.1 += md.len();
-        lines.push_str(&serde_json::to_string(&Entry { topic: topics.get(&rel).cloned().unwrap_or_default(), path: rel, size: md.len(), modified, category: cat, repo: repo.into() })?);
-        lines.push('\n');
+        let modified = md.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_secs()).unwrap_or(0);
+        recs.push(FileRec { rel, size: md.len(), modified });
     }
+    let (jsonl, md) = render(&recs, repo, topics)?;
     std::fs::create_dir_all(work.join(INDEX_DIR))?;
-    std::fs::write(work.join(INDEX_DIR).join("index.jsonl"), lines)?;
-    let mut md = format!("# バックアップ索引 / Backup index\n\nリポジトリ / repo: `{repo}`\n\n| カテゴリ / Category | 件数 / Files | 容量 / Size (MB) |\n|---|---|---|\n");
-    for (c, (n, sz)) in stats {
-        md.push_str(&format!("| {c} | {n} | {} |\n", sz / (1024 * 1024)));
-    }
-    md.push_str("\n全ファイルの一覧: `.open-backup/index.jsonl`(1行1ファイル)\n");
+    std::fs::write(work.join(INDEX_DIR).join("index.jsonl"), jsonl)?;
     std::fs::write(work.join("INDEX.md"), md)?;
     Ok(())
 }

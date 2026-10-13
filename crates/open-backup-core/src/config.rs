@@ -21,6 +21,9 @@ pub struct Config {
     /// 除外するディレクトリ名/ファイル名
     #[serde(default = "default_exclude")]
     pub exclude: Vec<String>,
+    /// 保存方法: "auto"(既定。`git` があれば `git`、無ければ GitHub API)、"git"、"api"(Rust だけ。Android はこれ)
+    #[serde(default = "default_backend")]
+    pub backend: String,
     /// GitHub OAuth App の client_id(デバイス認可でログインする場合)
     pub client_id: Option<String>,
     /// 内容による分類(同梱 aruaru-llm を端末内で起動)。既定で有効、使えなければ拡張子分類のみ
@@ -33,6 +36,9 @@ pub struct Config {
     pub ai_port: u16,
 }
 
+fn default_backend() -> String {
+    "auto".into()
+}
 fn default_true() -> bool {
     true
 }
@@ -65,6 +71,7 @@ impl Default for Config {
             max_repo_mb: default_max_repo_mb(),
             exclude: default_exclude(),
             client_id: None,
+            backend: default_backend(),
             ai_classify: true,
             ai_llm_exe: None,
             ai_port: default_ai_port(),
@@ -72,10 +79,20 @@ impl Default for Config {
     }
 }
 
+/// 設定・データの置き場所を1か所にまとめたい環境(Android のアプリ専用領域など)用。`OPEN_BACKUP_HOME` があれば、その下の `config` / `data` を使う。
+fn home_override() -> Option<PathBuf> {
+    std::env::var_os("OPEN_BACKUP_HOME").map(PathBuf::from).filter(|p| !p.as_os_str().is_empty())
+}
 pub fn config_dir() -> Result<PathBuf> {
+    if let Some(h) = home_override() {
+        return Ok(h.join("config"));
+    }
     Ok(dirs::config_dir().context("設定ディレクトリが不明")?.join("open-backup"))
 }
 pub fn data_dir() -> Result<PathBuf> {
+    if let Some(h) = home_override() {
+        return Ok(h.join("data"));
+    }
     Ok(dirs::data_local_dir().context("データディレクトリが不明")?.join("open-backup"))
 }
 pub fn config_path() -> Result<PathBuf> {

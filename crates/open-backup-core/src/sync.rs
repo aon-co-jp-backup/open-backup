@@ -108,12 +108,12 @@ fn mirror(src: &Path, dst: &Path, cfg: &Config, rep: &mut Report) -> Result<()> 
 
 
 #[derive(serde::Serialize, serde::Deserialize)]
-struct State {
+pub(crate) struct State {
     /// 現在書き込み中のリポジトリの世代番号
-    active: u32,
+    pub(crate) active: u32,
 }
 
-fn load_state() -> State {
+pub(crate) fn load_state() -> State {
     data_dir()
         .ok()
         .and_then(|d| std::fs::read_to_string(d.join("state.json")).ok())
@@ -121,7 +121,7 @@ fn load_state() -> State {
         .unwrap_or(State { active: 1 })
 }
 
-fn save_state(s: &State) -> Result<()> {
+pub(crate) fn save_state(s: &State) -> Result<()> {
     let d = data_dir()?;
     std::fs::create_dir_all(&d)?;
     std::fs::write(d.join("state.json"), serde_json::to_string(s)?)?;
@@ -289,4 +289,23 @@ pub fn index_only(cfg: &Config, dir: &Path) -> Result<()> {
     }
     let topics = topics_for(dir, eng.as_ref());
     crate::index::write_index(dir, "index-only", &topics)
+}
+
+/// `git` のコマンドが使えるか。
+pub fn git_available() -> bool {
+    Command::new("git").arg("--version").stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).status().map(|s| s.success()).unwrap_or(false)
+}
+
+/// 保存方法を選んで1回バックアップする。`auto` は、Android では常に API、それ以外は `git` があれば `git`、無ければ API。
+pub fn run_auto(cfg: &Config) -> Result<Report> {
+    let use_git = match cfg.backend.as_str() {
+        "git" => true,
+        "api" => false,
+        _ => !cfg!(target_os = "android") && git_available(),
+    };
+    if use_git {
+        run_once(cfg)
+    } else {
+        crate::apisync::run_once(cfg)
+    }
 }

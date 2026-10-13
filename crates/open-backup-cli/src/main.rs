@@ -102,7 +102,7 @@ fn main() -> Result<()> {
         }
         Cmd::Index { folder } => sync::index_only(&cfg, &folder)?,
         Cmd::Serve { port } => serve::serve(port)?,
-        Cmd::Once => report(sync::run_once(&cfg)),
+        Cmd::Once => report(sync::run_auto(&cfg)),
         Cmd::Run => {
             let (tx, rx) = mpsc::channel();
             let mut w = notify::recommended_watcher(move |e: notify::Result<notify::Event>| {
@@ -113,7 +113,7 @@ fn main() -> Result<()> {
             for f in &cfg.folders {
                 w.watch(f, RecursiveMode::Recursive)?;
             }
-            report(sync::run_once(&cfg));
+            report(sync::run_auto(&cfg));
             let every = Duration::from_secs(cfg.interval_secs);
             let mut last = Instant::now();
             loop {
@@ -123,7 +123,7 @@ fn main() -> Result<()> {
                     while rx.recv_timeout(Duration::from_secs(30)).is_ok() {}
                 }
                 if dirty || last.elapsed() >= every {
-                    report(sync::run_once(&cfg));
+                    report(sync::run_auto(&cfg));
                     last = Instant::now();
                 }
             }

@@ -12,5 +12,14 @@ toml = "0.8"
 ureq = { version = "2", features = ["json"] }
 walkdir = "2"
 base64 = "0.22"
-keyring = "3"
+sha1 = "0.10"
 dirs = "5"
+
+[target.'cfg(windows)'.dependencies]
+keyring = { version = "3", features = ["windows-native"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3", features = ["sync-secret-service"] }

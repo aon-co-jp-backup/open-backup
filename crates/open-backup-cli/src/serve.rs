@@ -34,7 +34,7 @@ fn run_backup(last: &Shared) {
         }
         l.running = true;
     }
-    let res = Config::load().and_then(|c| sync::run_once(&c));
+    let res = Config::load().and_then(|c| sync::run_auto(&c));
     let mut l = last.lock().unwrap();
     l.running = false;
     l.at = now();
