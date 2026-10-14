@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>open-backup — あなたのGitHub非公開リポジトリへ自動バックアップ</title>
+<meta name="description" content="端末のフォルダを、あなた自身のGitHub非公開リポジトリへ自動でバックアップ。Windows / Linux / Android。 Automatically back up your folders to your own private GitHub repository.">
+<style>
+:root{--bg:#fff;--fg:#14181f;--sub:#57606a;--card:#f6f8fa;--line:#d0d7de;--acc:#1f6feb;--warn:#c62828;--ok:#1a7f37}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--sub:#8b949e;--card:#161b22;--line:#30363d;--acc:#4a9eff;--warn:#ff7b72;--ok:#3fb950}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.7 system-ui,-apple-system,"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif}
+main{max-width:860px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:1.9rem;margin:8px 0 4px}
+h2{font-size:1.25rem;margin:36px 0 8px;padding-top:8px;border-top:1px solid var(--line)}
+.tag{color:var(--sub);margin:0 0 16px}
+.en{color:var(--sub);font-size:.95rem;margin:2px 0 10px}
+.warn{border:1px solid var(--warn);border-radius:12px;padding:12px 16px;margin:18px 0}
+.warn b{color:var(--warn)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th,td{text-align:left;padding:10px 8px;border-top:1px solid var(--line);vertical-align:top}
+th{color:var(--sub);font-weight:600;border-top:0}
+a{color:var(--acc)}
+.btn{display:inline-block;min-height:44px;padding:9px 16px;border-radius:10px;background:var(--acc);color:#fff;text-decoration:none;font-weight:600}
+code{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:.88em;overflow-wrap:anywhere}
+.hash{font:12px/1.4 ui-monospace,Consolas,monospace;color:var(--sub);overflow-wrap:anywhere}
+ol,ul{padding-left:1.3rem}
+li{margin:6px 0}
+footer{margin-top:40px;color:var(--sub);font-size:.88rem}
+@media (max-width:560px){h1{font-size:1.5rem} th:nth-child(3),td:nth-child(3){display:none}}
+</style>
+</head>
+<body>
+<main>
+<h1>open-backup</h1>
+<p class="tag">端末のフォルダを、<b>あなた自身のGitHub非公開リポジトリ</b>へ自動でバックアップ(Windows / Linux / Android)</p>
+<p class="en">Automatically back up your folders to <b>your own private GitHub repository</b> (Windows / Linux / Android)</p>
+
+<div class="warn">
+<p><b>⚠ 保存先は必ず非公開(Private)に。</b>公開リポジトリにすると、バックアップしたデータ(個人情報や認証情報を含む可能性があります)が世界中に見えます。このアプリは非公開リポジトリだけを自動で作り、保存先が公開になっていたら、データを送らずに止まります。あとから公開に変えると全データが公開されます。<b>絶対に変えないでください。</b></p>
+<p class="en"><b>Always keep the destination repository PRIVATE.</b> If it is public, your backed-up data (which may include personal information or credentials) is visible to everyone. The app only creates private repositories and aborts without sending anything if the destination is public. If you switch it to public later, all your data becomes public — never do that.</p>
+</div>
+
+<h2>ダウンロード / Download <small>(v0.1.0 アルファ版 / alpha)</small></h2>
+<p><a class="btn" href="https://github.com/aon-co-jp/open-backup/releases/tag/v0.1.0">最新のリリースページ / Release page (GitHub)</a></p>
+<table>
+<tr><th>対象 / For</th><th>ファイル / File</th><th>SHA-256</th></tr>
+<tr><td>Android 8.0 以上<br><span class="en">Android 8.0+</span></td>
+ <td><a href="https://github.com/aon-co-jp/open-backup/releases/download/v0.1.0/open-backup-0.1.0-android-debug.apk">open-backup-0.1.0-android-debug.apk</a> (4.6 MB)<br><span class="en">開発用の署名。提供元不明のアプリの許可が要ります / debug-signed: you must allow installing from unknown sources</span></td>
+ <td class="hash">1a47f76a0f7481e9070d1738a2d3347299c6e5250178645ce1c05fbedb12f35d</td></tr>
+<tr><td>Windows 10/11 (64bit)</td>
+ <td><a href="https://github.com/aon-co-jp/open-backup/releases/download/v0.1.0/open-backup-0.1.0-windows-x86_64.exe">open-backup-0.1.0-windows-x86_64.exe</a> (4.2 MB)<br><span class="en">コマンドライン+常駐エンジン / command line + resident engine</span></td>
+ <td class="hash">dff23e5b10f9391f19d9f436a294b537a2c4a01db53d1e052545c03f0892a9a8</td></tr>
+<tr><td>Linux (64bit)</td>
+ <td><a href="https://github.com/aon-co-jp/open-backup/releases/download/v0.1.0/open-backup-0.1.0-linux-x86_64">open-backup-0.1.0-linux-x86_64</a> (6.9 MB)<br><span class="en">glibc 2.43(Ubuntu 25.10 相当)でビルド。古いディストリビューションは、ソースからビルドしてください / built with glibc 2.43; on older distros build from source</span></td>
+ <td class="hash">1b44ff9af169dcf11d9189e0246c42a1ede88ff763571c1767079074921392fe</td></tr>
+</table>
+<p class="en">macOS と iPhone 版は、まだありません。 / No macOS or iPhone build yet. 署名のない開発用のビルドです。ダウンロードしたら、上の SHA-256 と一致するか確かめてください。 / These are unsigned development builds — please verify the SHA-256 after downloading.</p>
+
+<h2>使い方 / Quick start</h2>
+<ol>
+<li><b>Windows / Linux</b>: <code>open-backup serve</code> を実行し、ブラウザで <code>http://127.0.0.1:4620/ui</code> を開く。<b>Android</b>: アプリを開き、「すべてのファイルへのアクセス」を許可する。<br><span class="en">Windows / Linux: run <code>open-backup serve</code> and open the URL in a browser. Android: open the app and allow "All files access".</span></li>
+<li>画面の「はじめての方へ」に従って、GitHub のアカウント(無料)・保存先の非公開リポジトリ・最小権限のトークンを用意し、トークンを貼り付ける。<br><span class="en">Follow the in-app "New here?" guide: a GitHub account (free), a private repository, a minimal-permission token — then paste the token.</span></li>
+<li>バックアップするフォルダを追加して「今すぐバックアップ」。以後は、変更を検知して自動で保存します。<br><span class="en">Add folders and press "Back up now"; afterwards changes are detected and saved automatically.</span></li>
+</ol>
+
+<h2>GitHub のアカウントが無い方へ / If you have no GitHub account</h2>
+<div class="card">
+<p>GitHub のアカウント(無料)を作ってください。<b>アカウントの作成とメールアドレスの確認は、ご自身で GitHub の画面で行います。このアプリは代わりに作れません。</b></p>
+<p class="en">Please create a free GitHub account. <b>You sign up and confirm your email yourself on GitHub; this app cannot do it for you.</b></p>
+<ol>
+<li><a href="https://github.com/signup">github.com/signup</a> でアカウントを作る / create an account.</li>
+<li><a href="https://github.com/new">github.com/new</a> で、保存先の<b>非公開(Private)</b>リポジトリを作る。名前は、アプリの画面の「アカウント・保存先」に出ている名前(例 <code>open-backup-PC名-0001</code>)にする。末尾が <code>-0002</code> のリポジトリも作っておくと、容量がいっぱいになったとき自動で切り替わります。<br><span class="en">Create a <b>private</b> repository named exactly as shown under "Account &amp; destination" in the app (also create the <code>-0002</code> one so it can switch automatically).</span></li>
+<li><a href="https://github.com/settings/personal-access-tokens/new">Fine-grained トークン</a>を、そのリポジトリだけに「Contents: Read and write」で作る(有効期限は短めに)。<br><span class="en">Create a <a href="https://github.com/settings/personal-access-tokens/new">fine-grained token</a> limited to those repositories with "Contents: Read and write" only (short expiry).</span></li>
+<li>トークンをアプリの「GitHub にログイン」欄に貼り付ける。トークンは他人に見せないでください。<br><span class="en">Paste the token into the app's "Log in to GitHub" card. Never share it.</span></li>
+</ol>
+</div>
+
+<h2>特長 / Features</h2>
+<ul>
+<li>元のフォルダ構造のまま保存し、<code>INDEX.md</code>(拡張子による分類と索引)を自動で作ります。<span class="en"> Keeps your original folder layout and generates an <code>INDEX.md</code> (category index).</span></li>
+<li>容量が上限(既定 4GB)に近づくと、次のリポジトリへ自動で切り替えます。<span class="en"> Switches to the next repository automatically before one fills up.</span></li>
+<li><code>git</code> があれば git で、無い端末(Android)は GitHub API だけで、差分だけを送ります。<span class="en"> Uses git when available, otherwise only the GitHub API (Android), and uploads only what changed.</span></li>
+<li>通信するのは GitHub だけ。画面は端末の中(127.0.0.1)だけで動きます。トークンは OS の資格情報ストア、または Android のアプリ専用領域にだけ置きます。<span class="en"> It talks to GitHub only; the UI runs on 127.0.0.1; the token stays in the OS credential store or the Android app-private directory.</span></li>
+</ul>
+
+<h2>状態と制限 / Status and limits</h2>
+<ul>
+<li>アルファ版です。Windows(git の経路・GitHub API の経路)と Android エミュレーターでは保存まで通し確認しました。<b>Android 実機でのログイン以降と、macOS の実行は未確認</b>です。<span class="en"> Alpha. Verified end-to-end on Windows (git and GitHub API paths) and the Android emulator; <b>login and later on a real Android device, and macOS, are not verified yet</b>.</span></li>
+<li>1 ファイルは 40MB まで。GitHub は大容量のバックアップ向けではありません(リポジトリは数 GB まで)。<span class="en"> Files up to 40 MB; GitHub is not meant for huge backups (a few GB per repository).</span></li>
+</ul>
+
+<footer>
+<p>ライセンス / License: MIT OR Apache-2.0 ・ <a href="https://github.com/aon-co-jp/open-backup">ソースコード / Source (GitHub)</a> ・ <a href="/">easy-web.tokyo</a></p>
+</footer>
+</main>
+</body>
+</html>
