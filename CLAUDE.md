@@ -22,3 +22,5 @@
   - エンジンに `/login` `/logout`、画面にログイン欄とおすすめフォルダのボタン。
 - **試験**: Windows で API 経路(初回 → 変更なし → 変更+削除+追加)、Android x86_64 エミュレーター(Android 16)で通し。**未確認**: 実機・arm64 の実行、APK のリリース署名、iPhone、macOS の実行、3OS の CI(支払い設定)、AI 分類(Android には `aruaru-llm` が無いので、拡張子の分類だけ)。
 - 再開: `android\build-android.ps1`(Gradle は `~\.gradle\wrapper\dists` のものを `-Gradle` で指定。JDK は Android Studio の `jbr`)。エミュレーターは `Pixel_9_Pro`(x86_64)。**ユーザーの実機が adb につながっていることがある(ZY22…)ので、`-s emulator-5554` を必ず付ける**。PowerShell の `Remove-Item` は、F: のパスと同じ命令にあると保護で止まる(絶対パスで分けるか、`[IO.File]::Delete`)。
+- **Android の落とし穴(2026-10-14)**: 画面(`ui/index.html`)は、Rust のエンジンに `include_str!` で埋め込まれている。画面を変えたら、**必ず `android\build-android.ps1` でエンジン(cargo ndk)から作り直す**(Gradle の `assembleDebug` だけでは、アプリの中のエンジンが古いまま)。更新したら、`adb forward tcp:4620 tcp:4620` で `/ui` を取って、変更が入ったか確かめる(Windows のコンソールの日本語は文字化けするので、UTF-8 で読む)。
+  設定画面(すべてのファイルへのアクセス)がアプリのタスクの上に残っていると、`am start` が「前面の画面に渡しただけ」になり起動しない。`am start -n tokyo.aon.openbackup/.MainActivity -f 0x10008000`(NEW_TASK|CLEAR_TASK)で起動する。
