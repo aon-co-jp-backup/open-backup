@@ -6,3 +6,6 @@
 /android/app/src/main/jniLibs
 /tools/gen-ui/target
 /dist
+
+# a mis-expanded build path once created a folder named after the local user; never track it
+/C*Users*
