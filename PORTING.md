@@ -97,3 +97,14 @@ Android 向けの `git2` は OpenSSL が要り、`perl` と `make` の無い Win
 | Android(実機 arm64) | アプリの導入・エンジンの起動・状態の取得 | 確認済み。**ログイン以降は未確認** |
 | Linux(WSL) | release ビルド・テスト | 確認済み |
 | macOS | `cargo check`(zig cc) | コンパイルのみ |
+
+## 公開・配布・VPS / Release, distribution and the VPS (2026-10-14)
+
+- **リポジトリは公開**(https://github.com/aon-co-jp/open-backup。保存先のリポジトリが非公開であることとは別)。公開前に、履歴を検査し、誤って commit されていたビルド生成物(`tools/gen-ui/target`)と実機のシリアルを履歴から取り除いた(**コミットの ID が変わった**)。トークンの形の文字列・ユーザー名のパスは、履歴に無いことを確認済み。
+  *The repository is public (separate from the private destination repositories). Before publishing the history was scanned and build artifacts (`tools/gen-ui/target`) and a device serial were removed from history (commit IDs changed); no token-like strings or user-name paths remain.*
+- **リリース**: v0.1.0(プレリリース)。配布物 = Android の APK(開発用の署名)、Windows の exe、Linux のバイナリ、`SHA256SUMS.txt`。作り方: `powershell -ExecutionPolicy Bypass -File scripts\build-release.ps1 -Version 0.1.0 -Gradle <gradle.bat>`(`dist\` に出る。`--remap-path-prefix` で、ユーザー名・cargo のパス・リポジトリのパスをバイナリに残さない。**公開の前に、必ず `noruk` のような自分の名前が配布物に無いかを確かめる**)。`gh release create v0.1.0 --prerelease ...` で公開。
+  *Release v0.1.0 (pre-release): debug-signed APK, Windows exe, Linux binary, SHA256SUMS. Build with `scripts\build-release.ps1`, which remaps local paths; always verify your own user name is absent from the artifacts before publishing.*
+- **VPS(ConoHa)**: 紹介ページ https://easy-web.tokyo/open-backup/ 。`/root/easy-web.tokyo/open-backup`(GitHub から clone。更新は `git pull --ff-only`)の `webpage/` を、`open-backup-web.service`(`python3 -m http.server 8116 --bind 127.0.0.1`。`make-disk` などと同じ方式)が配信し、`open-web-server` の `domains.toml`(`/root/repository/open-web-server/domains.toml`)の `path_prefix = "/open-backup"` → `127.0.0.1:8116` で公開する。ダウンロードのリンクは GitHub のリリースを指す(VPS には、バイナリを置かない)。
+  設定を変えたときは `open-web-server` の再起動が要る(他のサイトが一瞬止まる)。バックアップは `domains.toml.bak-20261014-open-backup`。変更の前後で、全ホスト・主要な経路の HTTP の状態が同じことを確かめる(2026-10-14 は、32 項目すべて同じだった)。`easyweb.tokyo`(ハイフン無し)は、他のページと同じく、ルートだけで、`/open-backup` は `easy-web.tokyo` 側。
+  *Landing page at https://easy-web.tokyo/open-backup/, served from `/root/easy-web.tokyo/open-backup/webpage` by `open-backup-web.service` (static, 127.0.0.1:8116) through a route in open-web-server's `domains.toml`. Downloads link to the GitHub release (no binaries on the VPS). Changing the route needs an open-web-server restart; the backup is `domains.toml.bak-20261014-open-backup`. `easyweb.tokyo` (no hyphen) serves only the root, like the other pages.*
+- **更新の手順 / To update**: ページを直す → `webpage/index.html` を commit・push → VPS で `cd /root/easy-web.tokyo/open-backup && git pull --ff-only`(サービスの再起動は不要)。新しい版を出す → `build-release.ps1` → 新しいタグで `gh release create` → `webpage/index.html` のリンク・サイズ・SHA-256 を直す。

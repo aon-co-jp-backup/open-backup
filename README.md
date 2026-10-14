@@ -3,6 +3,8 @@
 端末のデータ(指定フォルダ)を、利用者自身のGitHubアカウントの**非公開リポジトリ**へ自動でバックアップします。
 Automatically backs up folders you choose on your device to a **private repository** in your own GitHub account.
 
+**ダウンロード・紹介ページ / Download & website**: [リリース v0.1.0 / Releases](https://github.com/aon-co-jp/open-backup/releases) ・ [https://easy-web.tokyo/open-backup/](https://easy-web.tokyo/open-backup/)(Android の APK・Windows・Linux。開発用の署名のないビルド / unsigned development builds)
+
 ## ⚠️ 注意 / Warning
 
 **日本語**: バックアップ先のGitHubリポジトリは、必ず**非公開(Private)**にしてください。

@@ -34,3 +34,9 @@
 ## ユーザーの方針(記録) / User policies
 
 - 「ダウンロードするものは利用者が選んだものだけ」「GitHub は非公開限定」「アカウント作成・最小権限トークンの作り方は利用者が自分で調べる(README に日英で最低限の手順)」「Rust+RPoem で作る」「実機への導入は許可を得てから」。
+
+## 公開(2026-10-14) / Public release
+
+- **リポジトリを公開**し、リリース v0.1.0(プレリリース)を出した。紹介ページ: https://easy-web.tokyo/open-backup/ 。詳細は PORTING.md の「公開・配布・VPS」。
+- 公開の前に、履歴の検査と、配布物のユーザー名の検査をした(`--remap-path-prefix`)。**今後も、リリースの前に、配布物に自分のユーザー名・パス・トークンが無いか確かめる**。履歴を書き換えたのは 1 回(`tools/gen-ui/target` の除去)。
+- VPS: `/root/easy-web.tokyo/open-backup`、`open-backup-web.service`(127.0.0.1:8116)、`domains.toml` の経路。変更の前後で、全ホストの状態を比べる。
