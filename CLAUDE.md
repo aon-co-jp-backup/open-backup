@@ -1,26 +1,36 @@
-# open-backup 開発メモ
+# open-backup 開発メモ (CLAUDE.md) / Development notes
 
-端末のデータを利用者自身のGitHub**非公開**リポジトリへ自動バックアップする。Rust(+RPoem)。詳細は README.md。
+端末のデータ(指定フォルダ)を、利用者自身の GitHub **非公開**リポジトリへ自動でバックアップする。Rust(コア・エンジン)+画面は RPoem(`open-runo-crossui`)で生成+ Android アプリ。詳細は [`README.md`](README.md)、**引っ越し・再開は [`PORTING.md`](PORTING.md)**。
+*Automatically backs up chosen folders to the user's own **private** GitHub repository. Rust core/engine, UI generated with RPoem, plus an Android app. See README.md; for moving to another machine / resuming, read PORTING.md.*
 
-## HANDOFF(2026-10-12 シャットダウン時点)
+`aruaru-IME` とは**別のプロジェクト**(混同しない)。作業場所は `F:\open-backup`(`F:\runo` 配下ではなく兄弟ディレクトリ)。
+*This is a **different project** from aruaru-IME. Working dir: `F:\open-backup` (a sibling of `F:\runo`).*
 
-- 実装済み: core(認証・非公開リポジトリ作成・ミラー/commit/push・世代切替・索引+AIトピック)、CLI(login/add/remove/status/once/run/index)。
-- 検証済み: Windowsで実push・増分・自動切替。Linux(WSL Ubuntu)でrelease+テスト成功。macOSは `cargo check`(zig cc)のみ。
-- AI分類: 同梱 `aruaru-llm` を端末で1つ共有(127.0.0.1のみ、tenant=open-backup)。埋め込みモデル `F:\aruaru-llm\models\multilingual-e5-small` は導入済み(git管理外)。
-- 画面: RPoem crossui で生成済み(`tools/gen-ui`→`ui/`)、`open-backup serve` で配信、実機のブラウザ確認済み。
-- 未了: (1) Android/iPhone のネイティブシェル(WebView) (2) Android/iPhone (3) macOS実行確認 (4) open-easy-webでaruaru-llmの導入/起動管理 (5) GitHub Actions(3OS CI)は支払い設定の問題で起動不可 (6) インストーラー。
-- テスト残骸: `aon-co-jp-backup` に非公開の `open-backup-selftest-0001〜0011`。ユーザーが不要時に削除(Claudeは削除しない)。
-- 注意: リポジトリ作成の連打は二次レート制限(403)。テストは少数ずつ。Windowsで `Set-Content` はTOML等の文字コードを壊すので使わない。
-- 再開手順: `F:\open-backup` で `cargo test`、WSLでLinuxビルド(`CARGO_TARGET_DIR=$HOME/ob-target`)。
+## 方針 / Policy
 
-## HANDOFF(2026-10-13 追記)
+- GitHub は必ず**非公開**。公開リポジトリが保存先なら、データを送らず中止する。README に日英で警告を載せる。
+- アカウントは作らない(利用者が自分で作る)。トークンは、最小権限(保存先のリポジトリだけに Contents の読み書き)を、利用者が自分で作る。値を画面・ログ・コミットに出さない。
+- 個人データを外へ出さない(AI 分類は端末内の `aruaru-llm` だけ、送り先は 127.0.0.1 固定)。
+- `aruaru-llm` は端末で 1 つだけ(既存を探して相乗り、tenant=`open-backup`)。
+- 汎用化できる部分は RPoem へ(画面の生成は RPoem の `open-runo-crossui`)。Python は使わない(Rust)。
+- 画面・インストーラーの試験ルール(複数の解像度・縦横・文字サイズ、下部ボタン固定)は、`open-raid-z/CLAUDE.md` の「運用ルール」。
 
-- **Android アプリ完成(エミュレーターで通し確認)**: `android/`(WebView + 前面サービス `EngineService` が `libopen_backup.so`=Rustのエンジンを起動)。git が無い端末のため、**GitHub Data API だけで保存する経路**(`crates/open-backup-core/src/apisync.rs`)を追加。`backend = "auto"`(git があれば git、Android は常に API)。
-  - `git2` ではなくこの方法にした理由: Android 向けの OpenSSL が、この PC に `perl`/`make` が無くビルドできないため。API の経路は ureq+rustls だけで、Android(arm64・x86_64)の `cargo ndk` ビルドが通る。
-  - 状態: `api-state/<repo>.json`(前回のコミット・リポジトリの木・ファイルのSHAの控え)。リポジトリの先頭が自分の記録と違えば、木を取り直して基準にする。空のリポジトリは Contents API で最初のコミットを作る(Git Data API は空のリポジトリで使えない)。
-  - トークン: デスクトップは OS の資格情報ストア(読み戻しで確認)、無ければ/Android はデータ領域の `token` ファイル(0600)。`OPEN_BACKUP_HOME` で設定・データの置き場所を1か所にできる(Androidは `filesDir/ob`)。
-  - エンジンに `/login` `/logout`、画面にログイン欄とおすすめフォルダのボタン。
-- **試験**: Windows で API 経路(初回 → 変更なし → 変更+削除+追加)、Android x86_64 エミュレーター(Android 16)で通し。**未確認**: 実機・arm64 の実行、APK のリリース署名、iPhone、macOS の実行、3OS の CI(支払い設定)、AI 分類(Android には `aruaru-llm` が無いので、拡張子の分類だけ)。
-- 再開: `android\build-android.ps1`(Gradle は `~\.gradle\wrapper\dists` のものを `-Gradle` で指定。JDK は Android Studio の `jbr`)。エミュレーターは `Pixel_9_Pro`(x86_64)。**ユーザーの実機が adb につながっていることがある(ZY22…)ので、`-s emulator-5554` を必ず付ける**。PowerShell の `Remove-Item` は、F: のパスと同じ命令にあると保護で止まる(絶対パスで分けるか、`[IO.File]::Delete`)。
-- **Android の落とし穴(2026-10-14)**: 画面(`ui/index.html`)は、Rust のエンジンに `include_str!` で埋め込まれている。画面を変えたら、**必ず `android\build-android.ps1` でエンジン(cargo ndk)から作り直す**(Gradle の `assembleDebug` だけでは、アプリの中のエンジンが古いまま)。更新したら、`adb forward tcp:4620 tcp:4620` で `/ui` を取って、変更が入ったか確かめる(Windows のコンソールの日本語は文字化けするので、UTF-8 で読む)。
-  設定画面(すべてのファイルへのアクセス)がアプリのタスクの上に残っていると、`am start` が「前面の画面に渡しただけ」になり起動しない。`am start -n tokyo.aon.openbackup/.MainActivity -f 0x10008000`(NEW_TASK|CLEAR_TASK)で起動する。
+## HANDOFF(2026-10-14 時点) / State
+
+- **実装済み / Done**: コア(認証・非公開リポジトリの確認/作成・保存・世代の切替・索引+AI の分類)、**2 つの保存方法**(`git` の経路 `sync.rs`、GitHub Data API だけの経路 `apisync.rs`。`backend="auto"`)、CLI(`login` `add` `remove` `status` `once` `run` `serve` `index`)、常駐エンジン `serve`(127.0.0.1:4620、画面 `/ui`、`/login` `/logout` を含む)、画面(RPoem で生成、ログイン欄・おすすめフォルダ・「はじめての方へ」の日英の案内)、Android アプリ(`android/`)。
+- **確認済み / Verified**: Windows の git 経路・API 経路(実 GitHub)、画面(ブラウザ)、Android x86_64 エミュレーターで起動→ログイン→フォルダ追加→実行→GitHub に保存、Android 実機(moto g53y 5G、Android 14)にアプリを導入してエンジンが起動、Linux(WSL)のビルドとテスト、macOS は `cargo check` のみ。
+- **未了 / Open**: 実機でログイン以降の通し確認(ユーザーが実機で試す)、iPhone、macOS の実行、3 OS の CI(GitHub の支払い設定)、Android の署名、`open-easy-web` による `aruaru-llm` の管理、インストーラー、GitHub 以外の保存先。詳細は PORTING.md の「未了」。
+- **テスト残骸 / Test leftovers**: `aon-co-jp-backup` に非公開の `open-backup-selftest-0001〜0011`。**削除はユーザーに任せる**(Claude は削除しない)。
+
+## 注意(環境固有) / Pitfalls
+
+- PowerShell 5.1: BOM の無い UTF-8 を読み間違える(日本語入りの `.ps1` は BOM 付き)。`Set-Content` は TOML を壊す。`Remove-Item` は F: のパスと同じ命令にあると保護で止まる(分ける)。
+- リポジトリの作成・内容の作成を短時間に連打すると、二次レート制限(403)。テストは少数ずつ。API の経路は 1 ファイルごとに約 0.7 秒あける。
+- **Android**: 画面(`ui/index.html`)は Rust のエンジンに `include_str!` で埋め込まれる。画面やコアを変えたら、**必ず `android\build-android.ps1` で、エンジンから作り直す**(Gradle の `assembleDebug` だけでは、アプリの中のエンジンが古いまま)。
+- **adb**: ユーザーの実機(`<実機のシリアル>`)がつながっていることがある。エミュレーターは `-s emulator-5554`。**実機への導入・更新は、ユーザーの許可を得てから**。`am start` は、設定画面がアプリのタスクの上に残っていると起動しない(`-f 0x10008000`)。
+- 非 ASCII を含む `perl -e`、Bash のヒアドキュメントの `\`・`\u`・`\t` は、環境で壊れることがある。編集は Edit/Write ツールで。
+- テスト用トークン(この開発機のみ): `F:\backup-token.txt`(`aon-co-jp-backup`)。実際のトークンは、OS の資格情報ストアに残さない(画面の `/login` に実トークンを入れない。環境変数 `OPEN_BACKUP_TOKEN` で渡す)。
+
+## ユーザーの方針(記録) / User policies
+
+- 「ダウンロードするものは利用者が選んだものだけ」「GitHub は非公開限定」「アカウント作成・最小権限トークンの作り方は利用者が自分で調べる(README に日英で最低限の手順)」「Rust+RPoem で作る」「実機への導入は許可を得てから」。

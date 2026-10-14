@@ -104,7 +104,7 @@ Nothing is sent off the device (the endpoint is always loopback). If `aruaru-llm
 Installing and supervising `aruaru-llm` is planned to be handled together with open-easy-web (not implemented yet).
 Disable with `ai_classify = false` in `config.toml`.
 
-## 動作確認の記録 / Verification log (2026-10-12)
+## 動作確認の記録 / Verification log (2026-10-12〜14)
 
 - 実機(Windows)で、テスト用の非公開リポジトリへ push・増分(変更/削除)・自動切り替えを確認。
 - 確認で見つけて直した点: 上限の計算が MB の整数で切り捨てられていた / データ自体が上限を超えると毎回切り替わっていた(警告して現状維持に変更) / GitHub の二次レート制限で次のリポジトリを作れない場合は切り替えを見送る。
@@ -136,9 +136,23 @@ powershell -ExecutionPolicy Bypass -File android\build-android.ps1     # エン�
 - 端末内のフォルダ(写真・文書)を読むため、初回に「すべてのファイルへのアクセス」の許可を案内します。画面の「おすすめフォルダ」(DCIM・Pictures・Documents・Download …)のボタンで追加できます。
 - トークンは、画面の「GitHub にログイン」欄に貼り付けます(作り方は上の「事前準備」)。
 - *The app is only a WebView plus a foreground service that keeps the engine running. The engine is a Rust executable shipped as `lib*.so`; its config and token live in the app-private directory. On first launch it asks for "All files access" (to read photos/documents by path); quick-add buttons offer DCIM, Pictures, Documents, Download… Paste your token in the "Log in to GitHub" card.*
+- 実機(moto g53y 5G、Android 14、arm64)には、アプリを導入し、エンジンが起動することまで確認(ログイン以降は、実機での確認待ち)。
 - 確認済み(Android 16 / x86_64 エミュレーター): 起動 → エンジン起動 → ログイン → `/storage/emulated/0/Documents` のフォルダを追加 → 「今すぐバックアップ」で、`a.txt` と 700KB の `photo.jpg` が非公開リポジトリに入る。**実機・arm64 の実行は未確認**(arm64 のエンジンのビルドは成功)。
 
 ## はじめての方へ(画面の案内) / First-time guide (in the app)
 
 **日本語**: 画面の「GitHub にログイン」欄に、「はじめての方へ(GitHub のアカウントが無い方も)」の案内があります(日英併記)。GitHub のアカウントが無い場合は、無料で作ります。**アカウントの作成とメールアドレスの確認は、ご自身で GitHub の画面で行います(このアプリは代わりに作れません)**。続けて、保存先の非公開リポジトリ(名前は画面の「アカウント・保存先」の表示どおり。`-0002` も作っておくと自動で切り替わります)と、そのリポジトリだけに「Contents: 読み書き」を許可した Fine-grained トークンを作り、貼り付けます。公式サイトへのリンク付き(Android では端末のブラウザで開きます)。GitHub は大容量のバックアップ向けではなく、1ファイルは 100MB(このアプリは 40MB)まで、リポジトリ全体は数GBまでが目安です。
 **English**: The "Log in to GitHub" card has a bilingual "New here? (no GitHub account yet)" guide. If you have no GitHub account, create a free one — **you sign up and confirm your email yourself on GitHub; this app cannot create accounts for you**. Then create a private repository named as shown under "Account & destination" (also create the `-0002` one so it can switch automatically) and a fine-grained token limited to it with "Contents: Read and write", and paste the token. Links to the official pages are included (opened in the device's browser on Android). GitHub is not meant for huge backups: files up to 100 MB (this app: 40 MB), a few GB per repository.
+
+---
+
+## 引っ越し / Moving to another machine
+
+**日本語**: このリポジトリだけで開発を続けられます。別の PC・別の作業環境へ移るときは、[`PORTING.md`](PORTING.md)(必要なツール・取得とビルドとテスト・設定とトークンの場所・環境固有の落とし穴・未了の一覧・アーキテクチャ・試験の結果)と、[`CLAUDE.md`](CLAUDE.md) の HANDOFF を読んでください。保存先の GitHub リポジトリは、引っ越し先でもそのまま使えます(API の経路は、リポジトリの現在の状態を基準に差分だけ送るので、手元の状態ファイルが無くても重複しません)。トークンは、リポジトリには含まれません(OS の資格情報ストア、またはアプリ専用領域)。引っ越し先で、もう一度ログインしてください。
+**English**: This repository is self-sufficient. To continue on another machine, read [`PORTING.md`](PORTING.md) (tools, get/build/test, where settings and the token live, environment pitfalls, open items, architecture, test results) and the HANDOFF in [`CLAUDE.md`](CLAUDE.md). The destination repositories on GitHub keep working on the new machine (the API path diffs against the repository's current state, so a missing local state file causes no duplicates). The token is never part of the repository (OS credential store or the app-private directory); log in again on the new machine.
+
+```
+git clone https://github.com/aon-co-jp/open-backup.git
+cd open-backup
+cargo test
+```
