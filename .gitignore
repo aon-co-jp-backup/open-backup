@@ -4,3 +4,4 @@
 /android/build
 /android/app/build
 /android/app/src/main/jniLibs
+/tools/gen-ui/target
