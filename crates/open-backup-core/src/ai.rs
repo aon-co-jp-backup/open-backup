@@ -95,7 +95,7 @@ pub type Cache = HashMap<String, String>; // "path|size|mtime" -> topic
 
 pub fn load_cache() -> Cache {
     data_dir().ok().and_then(|d| std::fs::read_to_string(d.join("topics.json")).ok())
-        .and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()
+        .and_then(|s| sonic_rs::from_str(&s).ok()).unwrap_or_default()
 }
 pub fn save_cache(c: &Cache) {
     if let Ok(d) = data_dir() { let _ = std::fs::create_dir_all(&d); let _ = std::fs::write(d.join("topics.json"), serde_json::to_string(c).unwrap_or_default()); }

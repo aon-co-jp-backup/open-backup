@@ -117,7 +117,7 @@ pub(crate) fn load_state() -> State {
     data_dir()
         .ok()
         .and_then(|d| std::fs::read_to_string(d.join("state.json")).ok())
-        .and_then(|s| serde_json::from_str(&s).ok())
+        .and_then(|s| sonic_rs::from_str(&s).ok())
         .unwrap_or(State { active: 1 })
 }
 

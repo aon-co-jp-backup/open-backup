@@ -38,7 +38,7 @@ fn state_path(repo: &str) -> Result<PathBuf> {
 }
 
 fn load(repo: &str) -> LocalState {
-    state_path(repo).ok().and_then(|p| std::fs::read_to_string(p).ok()).and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()
+    state_path(repo).ok().and_then(|p| std::fs::read_to_string(p).ok()).and_then(|s| sonic_rs::from_str(&s).ok()).unwrap_or_default()
 }
 
 fn save(repo: &str, s: &LocalState) -> Result<()> {
