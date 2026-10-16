@@ -158,3 +158,7 @@ git clone https://github.com/aon-co-jp/open-backup.git
 cd open-backup
 cargo test
 ```
+
+---
+
+作者 / Author: 石塚正浩（MASAHIRO ISHIZUKA） (https://github.com/aon-co-jp)
