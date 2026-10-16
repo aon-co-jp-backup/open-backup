@@ -58,7 +58,7 @@ target\release\open-backup serve # 画面: http://127.0.0.1:4620/ui
 2. iPhone 版。macOS の実行確認。3 OS の CI(`.github/workflows/ci.yml` は用意済み。GitHub アカウントの支払い設定が直れば動く)。
 3. Android の公開用の署名、アップデートの配布。Android での AI 分類(`aruaru-llm` が無いので、拡張子の分類だけ)。
 4. `open-easy-web` による `aruaru-llm` の導入・起動の管理。
-5. インストーラー(Windows)。
+5. ~~インストーラー(Windows)~~ 完了(2026-10-16): `installer/open-backup.iss`(Inno Setup、ユーザー単位・管理者不要、ログイン時の自動起動は任意)、`scripts/build-installer.ps1`。無人でのインストール→`/ui`が200→アンインストール(ファイル・ショートカット削除)を確認済み。Done 2026-10-16: per-user Inno Setup installer; silent install → `/ui` 200 → uninstall verified.
 6. 保存先の選択肢(GitHub 以外)。GitHub は大容量向けではない(1 ファイル 100MB、このアプリは 40MB まで。リポジトリは数 GB まで)。
 
 ## アーキテクチャ / Architecture

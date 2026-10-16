@@ -19,7 +19,7 @@
 
 - **実装済み / Done**: コア(認証・非公開リポジトリの確認/作成・保存・世代の切替・索引+AI の分類)、**2 つの保存方法**(`git` の経路 `sync.rs`、GitHub Data API だけの経路 `apisync.rs`。`backend="auto"`)、CLI(`login` `add` `remove` `status` `once` `run` `serve` `index`)、常駐エンジン `serve`(127.0.0.1:4620、画面 `/ui`、`/login` `/logout` を含む)、画面(RPoem で生成、ログイン欄・おすすめフォルダ・「はじめての方へ」の日英の案内)、Android アプリ(`android/`)。
 - **確認済み / Verified**: Windows の git 経路・API 経路(実 GitHub)、画面(ブラウザ)、Android x86_64 エミュレーターで起動→ログイン→フォルダ追加→実行→GitHub に保存、Android 実機(moto g53y 5G、Android 14)にアプリを導入してエンジンが起動、Linux(WSL)のビルドとテスト、macOS は `cargo check` のみ。
-- **未了 / Open**: 実機でログイン以降の通し確認(ユーザーが実機で試す)、iPhone、macOS の実行、3 OS の CI(GitHub の支払い設定)、Android の署名、`open-easy-web` による `aruaru-llm` の管理、インストーラー、GitHub 以外の保存先。詳細は PORTING.md の「未了」。
+- **未了 / Open**: 実機でログイン以降の通し確認(ユーザーが実機で試す)、iPhone、macOS の実行、3 OS の CI(GitHub の支払い設定)、Android の署名、`open-easy-web` による `aruaru-llm` の管理、GitHub 以外の保存先。(Windows インストーラーは 2026-10-16 完了: `installer/open-backup.iss`、`scripts/build-installer.ps1`、未公開=リリースへの添付はユーザー確認後)詳細は PORTING.md の「未了」。
 - **テスト残骸 / Test leftovers**: `aon-co-jp-backup` に非公開の `open-backup-selftest-0001〜0011`。**削除はユーザーに任せる**(Claude は削除しない)。
 
 ## 注意(環境固有) / Pitfalls
