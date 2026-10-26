@@ -83,12 +83,16 @@ footer{margin-top:40px;color:var(--sub);font-size:.88rem}
 <li>容量が上限(既定 4GB)に近づくと、次のリポジトリへ自動で切り替えます。<span class="en"> Switches to the next repository automatically before one fills up.</span></li>
 <li><code>git</code> があれば git で、無い端末(Android)は GitHub API だけで、差分だけを送ります。<span class="en"> Uses git when available, otherwise only the GitHub API (Android), and uploads only what changed.</span></li>
 <li>通信するのは GitHub だけ。画面は端末の中(127.0.0.1)だけで動きます。トークンは OS の資格情報ストア、または Android のアプリ専用領域にだけ置きます。<span class="en"> It talks to GitHub only; the UI runs on 127.0.0.1; the token stays in the OS credential store or the Android app-private directory.</span></li>
+<li><b>端末側の暗号化(任意)</b>: 送る前にあなたのPCの中で暗号化します(XChaCha20-Poly1305、鍵はパスフレーズから Argon2id で作成)。ファイル名・フォルダ構造・サイズ・AI の分類も、暗号化した目録にだけ入ります。<b>パスフレーズを失うと復元できません。</b><span class="en"> <b>Client-side encryption (optional)</b>: encrypted on your own PC before anything is sent (XChaCha20-Poly1305; key derived from your passphrase with Argon2id). File names, folder layout, sizes and AI topics live only in an encrypted manifest. <b>If you lose the passphrase, the data cannot be recovered.</b></span></li>
+<li><b>圧縮と並列処理</b>: 暗号化の前に zstd で圧縮し(写真・動画・圧縮ファイルは自動で省略)、ファイル単位・チャンク単位でマルチスレッドに処理します(この開発機で 暗号化・復号とも約 730〜740MB/s)。<span class="en"> <b>Compression and parallelism</b>: zstd before encryption (photos, videos and archives are skipped) and multi-threaded per file and per chunk (~730-740 MB/s for encrypt and decrypt on the dev machine).</span></li>
+<li><b>復元</b>: 画面の「復元」カードか <code>open-backup restore</code> で、好きな場所へ戻せます(暗号化は自動で復号。既存のファイルは、指定しない限り上書きしません)。<span class="en"> <b>Restore</b>: put your files back anywhere from the "Restore" card or <code>open-backup restore</code> (encrypted backups are decrypted automatically; existing files are never overwritten unless you ask).</span></li>
 </ul>
 
 <h2>状態と制限 / Status and limits</h2>
 <ul>
 <li>アルファ版です。Windows(git の経路・GitHub API の経路)と Android エミュレーターでは保存まで通し確認しました。<b>Android 実機でのログイン以降と、macOS の実行は未確認</b>です。<span class="en"> Alpha. Verified end-to-end on Windows (git and GitHub API paths) and the Android emulator; <b>login and later on a real Android device, and macOS, are not verified yet</b>.</span></li>
 <li>1 ファイルは 40MB まで。GitHub は大容量のバックアップ向けではありません(リポジトリは数 GB まで)。<span class="en"> Files up to 40 MB; GitHub is not meant for huge backups (a few GB per repository).</span></li>
+<li>暗号化・圧縮・復元は<b>開発版(GitHub の main)</b>で使えます。ダウンロードできる v0.1.0 には、まだ含まれていません。暗号化は git の保存方法のみ対応です(Android の GitHub API 方式は今後)。<span class="en"> Encryption, compression and restore are in the <b>development version (GitHub main)</b>; the downloadable v0.1.0 does not include them yet. Encryption works with the git backend only (the Android GitHub-API backend is planned).</span></li>
 </ul>
 
 <footer>
