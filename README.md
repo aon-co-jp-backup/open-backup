@@ -100,7 +100,7 @@ open-backup run               # 常駐(変更検知 + 定期実行)
 - **復元**: 好きな場所へ戻せます(暗号化は自動で復号。既存のファイルは、指定しない限り上書きしません)。画面の「復元」カード、または CLI。
 - 使い方: `open-backup crypt-init`(標準入力の1行目にパスフレーズ。2行目に確認用) → `config.toml` の `repo` を**新しい名前**に(暗号化していない過去のバックアップが残るリポジトリには書き込みません) → 通常どおりバックアップ。
   復元: `open-backup restore --to <フォルダ> [--github] [--gen N] [--only <ラベル/パス>] [--overwrite]`。一覧だけ見るなら `--list`。
-- 制限: 暗号化は **git の保存方法のみ**(GitHub API 方式=Android は未対応)。
+- 保存方法: **git 方式も GitHub API 方式(Android)も**、同じ形式で暗号化して送ります(実際の GitHub を通して、暗号化→取得→復元→一致を確認済み)。
 
 **English**
 - **Encryption (optional)**: encrypted **on your device** before anything is sent. Key = Argon2id(passphrase); data = XChaCha20-Poly1305 in 1 MiB chunks (tampering, truncation and swapped files are detected).
@@ -112,7 +112,7 @@ open-backup run               # 常駐(変更検知 + 定期実行)
 - **Restore**: restore to any folder (encrypted backups are decrypted automatically; existing files are not overwritten unless you ask) from the "Restore" card in the UI or from the CLI.
 - Usage: `open-backup crypt-init` (passphrase on the first line of stdin, confirmation on the second) → change `repo` in `config.toml` to a **new name** (it refuses to write into a repository that already holds unencrypted backups) → back up as usual.
   Restore: `open-backup restore --to <folder> [--github] [--gen N] [--only <label/path>] [--overwrite]`; `--list` only lists.
-- Limitation: encryption works with the **git backend only** (the GitHub API backend / Android is not supported yet).
+- Backends: encryption works with **both the git backend and the GitHub API backend (Android)**, using the same format (verified end to end against real GitHub: encrypt → push → fetch → restore → identical).
 
 ## ライセンス / License
 

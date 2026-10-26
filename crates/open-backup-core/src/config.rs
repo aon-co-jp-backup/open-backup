@@ -34,7 +34,7 @@ pub struct Config {
     /// 端末内(127.0.0.1)専用のポート
     #[serde(default = "default_ai_port")]
     pub ai_port: u16,
-    /// 送る前に端末で暗号化する(git の保存方法のみ。`open-backup crypt-init` で初期化)。既定は無効
+    /// 送る前に端末で暗号化する(git・API どちらの保存方法でも使える。`open-backup crypt-init` で初期化)。既定は無効
     #[serde(default)]
     pub encrypt: bool,
     /// 暗号化前の圧縮レベル(zstd、1〜19。0で圧縮しない)。既定 3

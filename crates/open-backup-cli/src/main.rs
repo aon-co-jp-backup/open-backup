@@ -143,7 +143,7 @@ fn main() -> Result<()> {
             println!("暗号化を有効にしました。");
             println!("・パスフレーズは OS の資格情報ストアに保存しました。失うと復元できません。別の安全な場所にも控えてください。");
             println!("・暗号化していない過去のバックアップがあるリポジトリには書き込みません。config.toml の repo を新しい名前にしてください(git の履歴に平文が残るため)。");
-            println!("・暗号化は git の保存方法のみ対応です。");
+            println!("・暗号化は、git 方式・GitHub API 方式のどちらでも使えます。");
         }
         Cmd::Restore { to, from, gen, github, only, overwrite, list } => {
             let work = match from {

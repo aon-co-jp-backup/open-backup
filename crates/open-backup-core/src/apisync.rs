@@ -127,8 +127,14 @@ impl Gh<'_> {
             "content": base64::engine::general_purpose::STANDARD.encode("created by open-backup\n"),
             "branch": "main",
         });
-        self.json("PUT", ".open-backup/created", Some(&body))?;
-        Ok(())
+        // Contents API の URL は `contents/<パス>`。作った直後は GitHub 側の準備が整うまで数秒 404 になることがあるので、少し待って再試行する。
+        for attempt in 0..5u64 {
+            if self.call("PUT", "contents/.open-backup/created", Some(&body))?.is_some() {
+                return Ok(());
+            }
+            std::thread::sleep(Duration::from_secs(2 + attempt * 2));
+        }
+        bail!("空のリポジトリへの最初の書き込みに失敗しました(404)。リポジトリの作成直後は、少し待ってからもう一度実行してください")
     }
 
     fn commit_tree(&self, sha: &str) -> Result<String> {
@@ -219,13 +225,35 @@ fn scan(cfg: &Config, st: &mut LocalState, rep: &mut Report) -> Result<Vec<Local
     Ok(out)
 }
 
+/// 暗号化したステージング(`crypt::sync_into` が作る、git 方式の作業コピーと同じ並び)を走査する。
+/// リポジトリの直下に `data/…`・`.open-backup/…` が並ぶので、ラベルは付けない。
+fn scan_staging(root: &Path, st: &mut LocalState) -> Result<Vec<Local>> {
+    let mut out = vec![];
+    for e in WalkDir::new(root).follow_links(false).into_iter().filter_map(|e| e.ok()) {
+        if !e.file_type().is_file() || e.path().extension().map(|x| x == "tmp").unwrap_or(false) {
+            continue;
+        }
+        let Ok(md) = e.metadata() else { continue };
+        let rel = e.path().strip_prefix(root)?.to_string_lossy().replace('\\', "/");
+        let mtime = md.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_secs()).unwrap_or(0);
+        let sha = match st.sha_cache.get(&rel) {
+            Some((sz, m, sha)) if *sz == md.len() && *m == mtime => sha.clone(),
+            _ => {
+                let Ok(bytes) = std::fs::read(e.path()) else { continue };
+                let sha = blob_sha(&bytes);
+                st.sha_cache.insert(rel.clone(), (md.len(), mtime, sha.clone()));
+                sha
+            }
+        };
+        out.push(Local { rel, abs: e.path().to_path_buf(), size: md.len(), mtime, sha });
+    }
+    Ok(out)
+}
+
 /// 1回分: 現用のリポジトリへ、差分だけ送る。上限に近ければ次のリポジトリへ切り替える。
 pub fn run_once(cfg: &Config) -> Result<Report> {
     if cfg.folders.is_empty() {
         bail!("対象フォルダが未設定です");
-    }
-    if cfg.encrypt {
-        bail!("暗号化は、現在 git の保存方法でのみ使えます(`backend = \"git\"`)。API の保存方法(Android など)への対応は今後の予定です");
     }
     let token = auth::token()?;
     let owner = github::login_name(&token)?;
@@ -293,13 +321,23 @@ fn backup_into(cfg: &Config, token: &str, owner: &str, repo: &str) -> Result<Don
         st.remote = gh.tree_map(&base_tree)?;
     }
 
-    let locals = scan(cfg, &mut st, &mut rep)?;
+    let locals = if cfg.encrypt {
+        // 端末で暗号化(平文は GitHub へ送らない)。API の1ファイル上限(40MB)に収まるよう、元のファイルの上限もそろえる。
+        let staging = data_dir()?.join("api-enc").join(repo);
+        let mut c = cfg.clone();
+        c.max_file_mb = c.max_file_mb.min(MAX_FILE_MB);
+        crate::crypt::sync_into(&c, &staging, None, &mut rep)?;
+        rep.copied = 0; // 送った数は、下で数え直す
+        scan_staging(&staging, &mut st)?
+    } else {
+        scan(cfg, &mut st, &mut rep)?
+    };
     let data_bytes: u64 = locals.iter().map(|l| l.size).sum();
 
     // 索引(メモリ上で作って、同じように比べて送る)
     let recs: Vec<index::FileRec> = locals.iter().map(|l| index::FileRec { rel: l.rel.clone(), size: l.size, modified: l.mtime }).collect();
     let (jsonl, md) = index::render(&recs, repo, &HashMap::new())?;
-    let extra: Vec<(String, Vec<u8>)> = vec![(".open-backup/index.jsonl".into(), jsonl.into_bytes()), ("INDEX.md".into(), md.into_bytes())];
+    let extra: Vec<(String, Vec<u8>)> = if cfg.encrypt { vec![] } else { vec![(".open-backup/index.jsonl".into(), jsonl.into_bytes()), ("INDEX.md".into(), md.into_bytes())] };
 
     // 送る必要があるもの
     let mut wanted: BTreeMap<String, (String, Option<&Local>, Option<&[u8]>)> = BTreeMap::new();
@@ -310,7 +348,14 @@ fn backup_into(cfg: &Config, token: &str, owner: &str, repo: &str) -> Result<Don
         wanted.insert(p.clone(), (blob_sha(c), None, Some(c.as_slice())));
     }
     let labels: HashSet<&str> = locals.iter().filter_map(|l| l.rel.split('/').next()).collect();
-    let managed = |p: &str| p == "INDEX.md" || p.starts_with(".open-backup/index") || p.split('/').next().is_some_and(|f| labels.contains(f));
+    let enc = cfg.encrypt;
+    let managed = |p: &str| {
+        if enc {
+            p.starts_with("data/") || p == "README-ENCRYPTED.md" || p == ".open-backup/manifest.obe" || p == ".open-backup/crypt.json"
+        } else {
+            p == "INDEX.md" || p.starts_with(".open-backup/index") || p.split('/').next().is_some_and(|f| labels.contains(f))
+        }
+    };
 
     let mut entries: Vec<serde_json::Value> = vec![];
     let mut uploaded: HashMap<String, String> = HashMap::new(); // sha → 送った blob の sha(同じ内容の重複を送らない)
