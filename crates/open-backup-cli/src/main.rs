@@ -2,7 +2,7 @@ mod serve;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use notify::{RecursiveMode, Watcher};
-use open_backup_core::{auth, config::Config, github, sync};
+use open_backup_core::{auth, config::Config, crypt, github, restore, sync};
 use std::{
     path::PathBuf,
     sync::mpsc,
@@ -32,6 +32,32 @@ enum Cmd {
     Status,
     /// 指定フォルダの索引だけ作る(GitHub へは送らない。動作確認用)
     Index { folder: PathBuf },
+    /// 暗号化を初期化する(パスフレーズを標準入力の1行目に。確認用に2行目を付けると一致を確かめる)。以後のバックアップは送る前に端末で暗号化される
+    CryptInit,
+    /// 保存したバックアップを、好きな場所へ戻す(暗号化は自動で復号)
+    Restore {
+        /// 復元先のフォルダ(無ければ作る)
+        #[arg(long)]
+        to: PathBuf,
+        /// 作業コピーの場所を直接指定(GitHub から取得した clone など)
+        #[arg(long)]
+        from: Option<PathBuf>,
+        /// リポジトリの世代番号(既定 1)
+        #[arg(long, default_value_t = 1)]
+        gen: u32,
+        /// GitHub から新しく取得して復元する
+        #[arg(long)]
+        github: bool,
+        /// `<ラベル>/<パス>` の先頭一致で絞り込む
+        #[arg(long)]
+        only: Option<String>,
+        /// 既存のファイルを上書きする(既定は上書きしない)
+        #[arg(long)]
+        overwrite: bool,
+        /// 復元せず、一覧だけ表示する
+        #[arg(long)]
+        list: bool,
+    },
     /// 1回だけバックアップ
     Once,
     /// 常駐(変更を検知して自動バックアップ + 定期実行)
@@ -101,6 +127,59 @@ fn main() -> Result<()> {
             );
         }
         Cmd::Index { folder } => sync::index_only(&cfg, &folder)?,
+        Cmd::CryptInit => {
+            let mut a = String::new();
+            std::io::stdin().read_line(&mut a)?;
+            let mut b = String::new();
+            std::io::stdin().read_line(&mut b)?;
+            let a = a.trim_end_matches(['\r', '\n']).to_string();
+            let b = b.trim_end_matches(['\r', '\n']).to_string();
+            if !b.is_empty() && a != b {
+                anyhow::bail!("2行目(確認)が1行目と一致しません");
+            }
+            crypt::init(&a)?;
+            cfg.encrypt = true;
+            cfg.save()?;
+            println!("暗号化を有効にしました。");
+            println!("・パスフレーズは OS の資格情報ストアに保存しました。失うと復元できません。別の安全な場所にも控えてください。");
+            println!("・暗号化していない過去のバックアップがあるリポジトリには書き込みません。config.toml の repo を新しい名前にしてください(git の履歴に平文が残るため)。");
+            println!("・暗号化は git の保存方法のみ対応です。");
+        }
+        Cmd::Restore { to, from, gen, github, only, overwrite, list } => {
+            let work = match from {
+                Some(f) => f,
+                None => restore::workdir(&cfg, gen, github)?,
+            };
+            let pass = if restore::is_encrypted(&work) {
+                Some(match crypt::passphrase() {
+                    Ok(p) => p.to_string(),
+                    Err(_) => {
+                        eprintln!("パスフレーズを入力してください(1行):");
+                        let mut s = String::new();
+                        std::io::stdin().read_line(&mut s)?;
+                        s.trim_end_matches(['\r', '\n']).to_string()
+                    }
+                })
+            } else {
+                None
+            };
+            if list {
+                let (enc, items) = restore::list(&work, pass.as_deref())?;
+                println!("{} ({}件)", if enc { "暗号化" } else { "平文" }, items.len());
+                for i in items.iter().filter(|i| only.as_deref().map(|o| i.rel.starts_with(o)).unwrap_or(true)) {
+                    println!("{:>12}  {}", i.size, i.rel);
+                }
+            } else {
+                let r = restore::run(&work, &to, pass.as_deref(), only.as_deref(), overwrite)?;
+                println!("復元{} 既存のためスキップ{} 合計{}バイト 失敗{}", r.restored, r.skipped, r.bytes, r.failed.len());
+                for f in &r.failed {
+                    eprintln!("失敗: {f}");
+                }
+                if !r.failed.is_empty() {
+                    std::process::exit(2);
+                }
+            }
+        }
         Cmd::Serve { port } => serve::serve(port)?,
         Cmd::Once => report(sync::run_auto(&cfg)),
         Cmd::Run => {

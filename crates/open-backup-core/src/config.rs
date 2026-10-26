@@ -34,6 +34,18 @@ pub struct Config {
     /// 端末内(127.0.0.1)専用のポート
     #[serde(default = "default_ai_port")]
     pub ai_port: u16,
+    /// 送る前に端末で暗号化する(git の保存方法のみ。`open-backup crypt-init` で初期化)。既定は無効
+    #[serde(default)]
+    pub encrypt: bool,
+    /// 暗号化前の圧縮レベル(zstd、1〜19。0で圧縮しない)。既定 3
+    #[serde(default = "default_compress")]
+    pub compress_level: i32,
+    /// 暗号化・圧縮に使うスレッド数(0 = CPU のコア数の半分。常駐の邪魔をしないため)
+    #[serde(default)]
+    pub threads: usize,
+}
+fn default_compress() -> i32 {
+    3
 }
 
 fn default_backend() -> String {
@@ -75,6 +87,9 @@ impl Default for Config {
             ai_classify: true,
             ai_llm_exe: None,
             ai_port: default_ai_port(),
+            encrypt: false,
+            compress_level: default_compress(),
+            threads: 0,
         }
     }
 }

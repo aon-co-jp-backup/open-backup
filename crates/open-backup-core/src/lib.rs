@@ -4,6 +4,8 @@ pub mod ai;
 pub mod apisync;
 pub mod auth;
 pub mod config;
+pub mod crypt;
 pub mod github;
 pub mod index;
+pub mod restore;
 pub mod sync;

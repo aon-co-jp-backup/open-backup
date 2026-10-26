@@ -27,7 +27,7 @@ input{font:inherit;min-height:44px;width:100%;border-radius:10px;border:1px soli
 #bar button:disabled{opacity:.6}
 .guide{margin-top:10px;font-size:.9rem}.guide summary{cursor:pointer;font-weight:600;min-height:32px}.guide ol{padding-left:1.2rem}.guide li{margin:6px 0}.guide a{color:var(--acc);overflow-wrap:anywhere}.guide code{background:var(--bg);padding:1px 6px;border-radius:6px;overflow-wrap:anywhere}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.chips button{min-height:40px;font-size:.9rem}
-#off{display:none;border:1px solid var(--ng);border-radius:10px;padding:10px 12px;margin:12px 0}"#;
+.rlist{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:8px}.rlist .row{cursor:pointer;padding:8px 10px}.rlist .row small{color:#8b949e;white-space:nowrap}.chk{display:flex;gap:8px;align-items:center;min-height:44px}.chk input{width:22px;min-height:22px;height:22px}#rmsg.ng{color:var(--ng)}#rmsg.ok{color:var(--ok)}#off{display:none;border:1px solid var(--ng);border-radius:10px;padding:10px 12px;margin:12px 0}"#;
 
 const JS: &str = r#"(()=>{
 const $=i=>document.getElementById(i);
@@ -56,6 +56,42 @@ $("addb").onclick=async()=>{const v=$("addf").value.trim();if(!v)return;try{rend
 $("addf").addEventListener("keydown",e=>{if(e.key==="Enter")$("addb").click();});
 $("loginb").onclick=async()=>{const v=$("tok").value.trim();if(!v)return;try{render(await api("/login",{token:v}));$("tok").value="";}catch(e){err(e);}};
 $("tok").addEventListener("keydown",e=>{if(e.key==="Enter")$("loginb").click();});
+
+const R={};
+async function post(p,b){const r=await fetch(BASE+p,{method:"POST",body:JSON.stringify(b)});const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.error||r.status);e.need=!!j.need_pass;throw e;}return j;}
+function fmt(n){return n<1024?n+" B":n<1048576?(n/1024).toFixed(1)+" KB":n<1073741824?(n/1048576).toFixed(1)+" MB":(n/1073741824).toFixed(2)+" GB";}
+function rbody(x){return Object.assign({gen:Number($("rgen").value)||1,github:$("rgh").checked,pass:$("rpass").value},x||{});}
+function rmsg(t,c){const m=$("rmsg");m.className=c||"";m.textContent=t;}
+function mkrow(main,sub,onclick){const d=document.createElement("div");d.className="row";const a=document.createElement("span");a.textContent=main;const b=document.createElement("small");b.textContent=sub||"";d.appendChild(a);d.appendChild(b);d.onclick=onclick;return d;}
+$("rload").onclick=async()=>{
+  rmsg("一覧を読み込み中… / Loading…");$("rlist").textContent="";
+  try{
+    const r=await post("/restore/list",rbody({q:$("rq").value.trim()}));
+    rmsg((r.encrypted?"🔒 暗号化されたバックアップ / Encrypted — ":"")+r.total+" 件・"+fmt(r.total_bytes)+"(クリックで復元対象を選択 / click to choose)","ok");
+    const L=$("rlist");
+    r.labels.forEach(l=>L.appendChild(mkrow("📁 "+l.label+"/(すべて / all)",l.count+" 件・"+fmt(l.bytes),()=>{$("ronly").value=l.label+"/";})));
+    r.items.forEach(i=>L.appendChild(mkrow(i.rel,fmt(i.size)+(i.topic?" · "+i.topic:""),()=>{$("ronly").value=i.rel;})));
+  }catch(e){rmsg(e.message,"ng");if(e.need)$("rpass").focus();}
+};
+$("rq").addEventListener("keydown",e=>{if(e.key==="Enter")$("rload").click();});
+async function rpoll(){
+  try{
+    const j=await api("/restore/status");
+    if(j.running){rmsg("復元中… / Restoring… → "+j.dest);setTimeout(rpoll,1000);return;}
+    if(j.done){
+      rmsg(j.msg+"("+fmt(j.bytes)+")→ "+j.dest,j.ok?"ok":"ng");
+      const L=$("rlist");L.textContent="";(j.failed||[]).forEach(f=>L.appendChild(mkrow("⚠ "+f,"",()=>{})));
+      $("rrun").disabled=false;
+    }
+  }catch(e){rmsg(e.message,"ng");$("rrun").disabled=false;}
+}
+$("rrun").onclick=async()=>{
+  const orig=$("rorig").checked,dest=$("rdest").value.trim();
+  if(!orig&&!dest){rmsg("復元先のフォルダを入力するか、「元の場所へ」を選んでください / Enter a destination or choose original location","ng");return;}
+  $("rrun").disabled=true;rmsg("開始します… / Starting…");
+  try{await post("/restore/run",rbody({dest:dest,only:$("ronly").value.trim(),overwrite:$("rover").checked,original:orig}));setTimeout(rpoll,500);}
+  catch(e){rmsg(e.message,"ng");$("rrun").disabled=false;if(e.need)$("rpass").focus();}
+};
 tick();setInterval(tick,3000);
 })();"#;
 
@@ -130,6 +166,32 @@ fn root() -> VNode {
             h("div").attr("class", "card")
                 .child(h("h2").child(txt("直近の結果 / Last result")).build())
                 .child(h("div").attr("id", "res").build())
+                .build(),
+        )
+        .child(
+            h("div").attr("class", "card").attr("id", "restorecard")
+                .child(h("h2").child(txt("復元 / Restore")).build())
+                .child(h("p").attr("class", "sub").child(txt("保存したデータを、好きな場所へ戻します。暗号化したバックアップは自動で復号します。既存のファイルは、指定しない限り上書きしません。 / Restore your data to any folder. Encrypted backups are decrypted automatically. Existing files are not overwritten unless you ask.")).build())
+                .child(
+                    h("div").attr("class", "add")
+                        .child(h("input").attr("id", "rq").attr("placeholder", "ファイル名・分類で検索(空欄で全部) / Search (blank = all)").attr("autocomplete", "off").attr("spellcheck", "false").build())
+                        .child(h("button").attr("id", "rload").child(txt("一覧 / List")).build())
+                        .build(),
+                )
+                .child(
+                    h("div").attr("class", "add")
+                        .child(h("input").attr("id", "rgen").attr("type", "number").attr("min", "1").attr("value", "1").attr("title", "リポジトリの世代番号 / repository generation").build())
+                        .child(h("label").attr("class", "chk").child(h("input").attr("id", "rgh").attr("type", "checkbox").build()).child(txt("GitHubから取得 / Fetch from GitHub")).build())
+                        .build(),
+                )
+                .child(h("div").attr("id", "rlist").attr("class", "rlist").build())
+                .child(h("div").attr("class", "add").child(h("input").attr("id", "ronly").attr("placeholder", "復元する範囲(上の一覧をクリック。空欄で全部) / What to restore (click above; blank = all)").attr("autocomplete", "off").attr("spellcheck", "false").build()).build())
+                .child(h("div").attr("class", "add").child(h("input").attr("id", "rdest").attr("placeholder", "復元先のフォルダ(例: D:\\復元) / Destination folder").attr("autocomplete", "off").attr("spellcheck", "false").build()).build())
+                .child(h("div").attr("class", "add").child(h("input").attr("id", "rpass").attr("type", "password").attr("placeholder", "パスフレーズ(暗号化の場合。保存済みなら空欄でOK) / Passphrase (encrypted only)").attr("autocomplete", "off").build()).build())
+                .child(h("label").attr("class", "chk").child(h("input").attr("id", "rorig").attr("type", "checkbox").build()).child(txt("元の場所へ戻す / Restore to original locations")).build())
+                .child(h("label").attr("class", "chk").child(h("input").attr("id", "rover").attr("type", "checkbox").build()).child(txt("既存のファイルを上書きする / Overwrite existing files")).build())
+                .child(h("button").attr("id", "rrun").child(txt("復元する / Restore")).build())
+                .child(h("div").attr("id", "rmsg").build())
                 .build(),
         )
         .child(h("div").attr("id", "bar").child(h("button").attr("id", "run").child(txt("今すぐバックアップ / Back up now")).build()).build())

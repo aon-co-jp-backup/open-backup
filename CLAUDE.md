@@ -40,3 +40,11 @@
 - **リポジトリを公開**し、リリース v0.1.0(プレリリース)を出した。紹介ページ: https://easy-web.tokyo/open-backup/ 。詳細は PORTING.md の「公開・配布・VPS」。
 - 公開の前に、履歴の検査と、配布物のユーザー名の検査をした(`--remap-path-prefix`)。**今後も、リリースの前に、配布物に自分のユーザー名・パス・トークンが無いか確かめる**。履歴を書き換えたのは 1 回(`tools/gen-ui/target` の除去)。
 - VPS: `/root/easy-web.tokyo/open-backup`、`open-backup-web.service`(127.0.0.1:8116)、`domains.toml` の経路。変更の前後で、全ホストの状態を比べる。
+
+## HANDOFF(2026-10-26) 暗号化・圧縮・並列・復元 / Encryption, compression, parallelism, restore
+
+- **実装**: `crates/open-backup-core/src/crypt.rs`(暗号化・復号・圧縮・目録・鍵)、`restore.rs`(復元・一覧・元の場所へ)、`sync.rs`(`encrypt=true` なら平文を作業コピーに置かず `crypt::sync_into`)、CLI(`crypt-init` / `restore`)、エンジン(`/restore/list` `/restore/run` `/restore/status`、127.0.0.1専用)、画面(`tools/gen-ui` に「復元」カード。再生成は `cd tools/gen-ui && cargo run`)。
+- **形式 v2**: `OBE2` | nonce(19) | { 長さ(u32 LE) | 暗号文 }。チャンクの nonce = ファイルnonce | 番号(u32 BE) | 最後なら1(STREAM と同じ構成。チャンク単位で並列に処理でき、切り詰めは「最後」の印で検出)。チャンクの中身は [モード 0=そのまま/1=zstd] + データ。AAD = `<ラベル>/<パス>`(ファイルの入れ替えを検出)。ファイルnonce = BLAKE3 鍵つきハッシュ(パス + 内容)=決定的(変更無しなら暗号文も同一)。
+- **試験**: `cargo test -p open-backup-core --release`(単体9 + 通し1: 暗号化→復元→内容一致・名前が平文で出ない・変更無しで差分0・改ざん1件だけ失敗・平文リポジトリへの書き込み拒否)。ベンチ: `cargo test -p open-backup-core --release bench_throughput -- --ignored --nocapture`。
+- **未了 / Open**: (1) GitHub への実 push を通した通し確認(今回は GitHub へ送らず、作業コピーまでを試験)。(2) 暗号化の GitHub API 方式(Android)対応。(3) 画面(復元カード)のブラウザでの目視確認(エンジンの窓口は curl で確認済み)。(4) 実機のオフィス運用向け: 大きいファイルの分割、保存期間のルール、失敗の通知、複数台の一括管理、起動後に遅らせて実行。
+- **注意**: 暗号化はパスフレーズを失うと復元できない。`crypt-init` は新しい salt を作るので、既に暗号化済みのリポジトリへ別の salt では書き込まない(拒否する)。

@@ -88,6 +88,32 @@ open-backup run               # 常駐(変更検知 + 定期実行)
   Stored as plain folders (original layout). Auto-categorization (by extension) and an auto-index are written to `INDEX.md` and `.open-backup/index.jsonl` in each repo.
 - 元で削除したファイルはバックアップ側からも消えますが、gitの履歴には残ります。
 
+## 暗号化・圧縮・復元 / Encryption, compression, restore (2026-10-26)
+
+**日本語**
+- **暗号化(任意)**: 送る前に**端末で**暗号化します。鍵はパスフレーズから Argon2id で作り、本体は XChaCha20-Poly1305(1MiB ごとのチャンク、改ざん・切り詰め・入れ替えを検出)。
+  ファイル名・フォルダ構造・サイズ・AI の分類は、暗号化した目録(`.open-backup/manifest.obe`)にだけ入り、リポジトリ上の名前は不透明なハッシュです。
+  同じ内容なら毎回同じ暗号文になるので、変更の無いファイルは git に差分が出ません。**パスフレーズを失うと復元できません。**
+- **圧縮**: 暗号化の前に zstd で圧縮します(`compress_level`、既定3、0で無効)。写真・動画・圧縮ファイルは自動で省きます。
+- **並列**: ファイル単位・チャンク単位でマルチスレッドに処理します(`threads`、既定は CPU のコア数の半分。常駐の邪魔をしないため)。
+  実測(この開発機・8スレッド): 暗号化 約 740MB/s、復号 約 730MB/s、日本語の文章は圧縮込みで約 1.8GB/s。**GPU(open-cuda)は使いません**: ChaCha20 は CPU で十分速く、律速はディスクと回線のためです。
+- **復元**: 好きな場所へ戻せます(暗号化は自動で復号。既存のファイルは、指定しない限り上書きしません)。画面の「復元」カード、または CLI。
+- 使い方: `open-backup crypt-init`(標準入力の1行目にパスフレーズ。2行目に確認用) → `config.toml` の `repo` を**新しい名前**に(暗号化していない過去のバックアップが残るリポジトリには書き込みません) → 通常どおりバックアップ。
+  復元: `open-backup restore --to <フォルダ> [--github] [--gen N] [--only <ラベル/パス>] [--overwrite]`。一覧だけ見るなら `--list`。
+- 制限: 暗号化は **git の保存方法のみ**(GitHub API 方式=Android は未対応)。
+
+**English**
+- **Encryption (optional)**: encrypted **on your device** before anything is sent. Key = Argon2id(passphrase); data = XChaCha20-Poly1305 in 1 MiB chunks (tampering, truncation and swapped files are detected).
+  File names, folder layout, sizes and AI topics live only in an encrypted manifest (`.open-backup/manifest.obe`); names in the repo are opaque hashes.
+  Identical input gives identical ciphertext, so unchanged files produce no git diff. **If you lose the passphrase, the data cannot be recovered.**
+- **Compression**: zstd before encryption (`compress_level`, default 3, 0 = off); photos, videos and archives are skipped automatically.
+- **Parallel**: multi-threaded per file and per chunk (`threads`; default = half the CPU cores, so the resident process stays unobtrusive).
+  Measured (this dev machine, 8 threads): ~740 MB/s encrypt, ~730 MB/s decrypt, ~1.8 GB/s on Japanese text with compression. **No GPU (open-cuda) is used**: ChaCha20 is fast enough on the CPU and the real bottleneck is disk and network.
+- **Restore**: restore to any folder (encrypted backups are decrypted automatically; existing files are not overwritten unless you ask) from the "Restore" card in the UI or from the CLI.
+- Usage: `open-backup crypt-init` (passphrase on the first line of stdin, confirmation on the second) → change `repo` in `config.toml` to a **new name** (it refuses to write into a repository that already holds unencrypted backups) → back up as usual.
+  Restore: `open-backup restore --to <folder> [--github] [--gen N] [--only <label/path>] [--overwrite]`; `--list` only lists.
+- Limitation: encryption works with the **git backend only** (the GitHub API backend / Android is not supported yet).
+
 ## ライセンス / License
 
 MIT OR Apache-2.0

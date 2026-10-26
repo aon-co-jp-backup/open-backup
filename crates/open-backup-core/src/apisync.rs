@@ -224,6 +224,9 @@ pub fn run_once(cfg: &Config) -> Result<Report> {
     if cfg.folders.is_empty() {
         bail!("対象フォルダが未設定です");
     }
+    if cfg.encrypt {
+        bail!("暗号化は、現在 git の保存方法でのみ使えます(`backend = \"git\"`)。API の保存方法(Android など)への対応は今後の予定です");
+    }
     let token = auth::token()?;
     let owner = github::login_name(&token)?;
     let mut st = load_state();

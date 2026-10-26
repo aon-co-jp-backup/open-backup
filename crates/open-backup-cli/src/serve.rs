@@ -2,7 +2,7 @@
 //! フォルダ変更の監視と定期実行も同じプロセスで行う。
 use anyhow::Result;
 use notify::{RecursiveMode, Watcher};
-use open_backup_core::{auth, config::Config, github, sync};
+use open_backup_core::{auth, config::Config, crypt, github, restore, sync};
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
@@ -20,6 +20,135 @@ struct Last {
 }
 
 type Shared = Arc<Mutex<Last>>;
+
+/// 復元ジョブ(画面から実行。同時に1つ)
+#[derive(Default, Clone, serde::Serialize)]
+struct Job {
+    running: bool,
+    done: bool,
+    ok: bool,
+    msg: String,
+    restored: usize,
+    skipped: usize,
+    bytes: u64,
+    failed: Vec<String>,
+    dest: String,
+}
+static JOB: Mutex<Option<Job>> = Mutex::new(None);
+
+fn jval(body: &[u8]) -> serde_json::Value {
+    serde_json::from_slice(body).unwrap_or(serde_json::Value::Null)
+}
+
+/// 復元元の作業コピーとパスフレーズを用意する(暗号化なら、画面から渡された値か、保存済みの値)。
+fn restore_source(v: &serde_json::Value) -> Result<(PathBuf, Option<String>, Config), (String, bool)> {
+    let cfg = Config::load().unwrap_or_default();
+    let gen = v["gen"].as_u64().unwrap_or(1).max(1) as u32;
+    let github = v["github"].as_bool().unwrap_or(false);
+    let work = restore::workdir(&cfg, gen, github).map_err(|e| (format!("{e:#}"), false))?;
+    let pass = if restore::is_encrypted(&work) {
+        let p = v["pass"]
+            .as_str()
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
+            .or_else(|| crypt::passphrase().ok().map(|p| p.to_string()));
+        match p {
+            Some(p) => Some(p),
+            None => return Err(("暗号化されたバックアップです。パスフレーズを入力してください / Passphrase required".into(), true)),
+        }
+    } else {
+        None
+    };
+    Ok((work, pass, cfg))
+}
+
+fn err_json(m: &str, need: bool) -> (String, String) {
+    (
+        if need { "401 Unauthorized" } else { "400 Bad Request" }.into(),
+        serde_json::json!({"error": m, "need_pass": need}).to_string(),
+    )
+}
+
+fn restore_list(v: &serde_json::Value) -> (String, String) {
+    let (work, pass, _) = match restore_source(v) {
+        Ok(x) => x,
+        Err((m, need)) => return err_json(&m, need),
+    };
+    let (enc, items) = match restore::list(&work, pass.as_deref()) {
+        Ok(x) => x,
+        Err(e) => return err_json(&format!("{e:#}"), false),
+    };
+    let q = v["q"].as_str().unwrap_or("").to_lowercase();
+    let limit = v["limit"].as_u64().unwrap_or(300).min(2000) as usize;
+    let mut labels: std::collections::BTreeMap<String, (usize, u64)> = Default::default();
+    for i in &items {
+        let l = i.rel.split('/').next().unwrap_or("").to_string();
+        let e = labels.entry(l).or_default();
+        e.0 += 1;
+        e.1 += i.size;
+    }
+    let shown: Vec<&restore::Item> = items
+        .iter()
+        .filter(|i| q.is_empty() || i.rel.to_lowercase().contains(&q) || i.topic.as_deref().unwrap_or("").to_lowercase().contains(&q))
+        .take(limit)
+        .collect();
+    (
+        "200 OK".into(),
+        serde_json::json!({
+            "encrypted": enc,
+            "total": items.len(),
+            "total_bytes": items.iter().map(|i| i.size).sum::<u64>(),
+            "labels": labels.iter().map(|(k, (n, b))| serde_json::json!({"label": k, "count": n, "bytes": b})).collect::<Vec<_>>(),
+            "items": shown,
+        })
+        .to_string(),
+    )
+}
+
+fn restore_start(v: serde_json::Value) -> (String, String) {
+    if JOB.lock().unwrap().as_ref().map(|j| j.running).unwrap_or(false) {
+        return ("409 Conflict".into(), "{\"error\":\"復元を実行中です / A restore is already running\"}".into());
+    }
+    let original = v["original"].as_bool().unwrap_or(false);
+    let dest = v["dest"].as_str().unwrap_or("").trim().to_string();
+    if !original && dest.is_empty() {
+        return ("400 Bad Request".into(), "{\"error\":\"復元先のフォルダを入力してください / Enter a destination folder\"}".into());
+    }
+    let (work, pass, cfg) = match restore_source(&v) {
+        Ok(x) => x,
+        Err((m, need)) => return err_json(&m, need),
+    };
+    let only = v["only"].as_str().map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    let overwrite = v["overwrite"].as_bool().unwrap_or(false);
+    *JOB.lock().unwrap() = Some(Job { running: true, dest: if original { "(元の場所 / original)".into() } else { dest.clone() }, ..Default::default() });
+    std::thread::spawn(move || {
+        let res = if original {
+            restore::run_original(&work, &cfg, pass.as_deref(), only.as_deref(), overwrite)
+        } else {
+            restore::run(&work, std::path::Path::new(&dest), pass.as_deref(), only.as_deref(), overwrite)
+        };
+        let mut j = JOB.lock().unwrap();
+        let mut job = j.take().unwrap_or_default();
+        job.running = false;
+        job.done = true;
+        match res {
+            Ok(r) => {
+                job.ok = r.failed.is_empty();
+                job.restored = r.restored;
+                job.skipped = r.skipped;
+                job.bytes = r.bytes;
+                job.msg = format!("復元{}件 / スキップ{}件(既存) / 失敗{}件", r.restored, r.skipped, r.failed.len());
+                job.failed = r.failed.into_iter().take(50).collect();
+            }
+            Err(e) => {
+                job.ok = false;
+                job.msg = format!("{e:#}");
+            }
+        }
+        *j = Some(job);
+    });
+    ("200 OK".into(), "{\"started\":true}".into())
+}
 
 fn now() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
@@ -170,6 +299,18 @@ fn handle(mut s: TcpStream, last: Shared, port: u16) {
             let _ = auth::logout();
             reset_login_cache();
             respond(&mut s, "200 OK", "application/json", &status_json(&last, port));
+        }
+        ("POST", "/restore/list") => {
+            let (code, b) = restore_list(&jval(&body));
+            respond(&mut s, &code, "application/json", &b);
+        }
+        ("POST", "/restore/run") => {
+            let (code, b) = restore_start(jval(&body));
+            respond(&mut s, &code, "application/json", &b);
+        }
+        ("GET", "/restore/status") => {
+            let j = JOB.lock().unwrap().clone().unwrap_or_default();
+            respond(&mut s, "200 OK", "application/json", &serde_json::to_string(&j).unwrap_or_default());
         }
         ("POST", "/run") => {
             let l = last.clone();

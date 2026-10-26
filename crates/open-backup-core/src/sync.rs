@@ -15,7 +15,7 @@ pub struct Report {
     pub pushed: bool,
 }
 
-fn git(dir: &Path, token: Option<&str>, args: &[&str]) -> Result<String> {
+pub(crate) fn git(dir: &Path, token: Option<&str>, args: &[&str]) -> Result<String> {
     let mut c = Command::new("git");
     c.current_dir(dir).args(args).env("GIT_TERMINAL_PROMPT", "0");
     if let Some(t) = token {
@@ -36,7 +36,7 @@ fn git(dir: &Path, token: Option<&str>, args: &[&str]) -> Result<String> {
     Ok(String::from_utf8_lossy(&o.stdout).to_string())
 }
 
-fn label(p: &Path, used: &mut HashSet<String>) -> String {
+pub(crate) fn label(p: &Path, used: &mut HashSet<String>) -> String {
     let base = p
         .file_name()
         .map(|s| s.to_string_lossy().to_string())
@@ -225,17 +225,22 @@ fn backup_into(
     git(work, None, &["config", "core.longpaths", "true"])?;
 
     let mut rep = Report::default();
-    let mut used = HashSet::new();
-    for f in &cfg.folders {
-        if !f.is_dir() {
-            eprintln!("スキップ(存在しない): {}", f.display());
-            continue;
+    if cfg.encrypt {
+        // 暗号化: 平文は作業コピーに置かない。索引・分類も暗号化した目録の中だけに入る。
+        crate::crypt::sync_into(cfg, work, eng, &mut rep)?;
+    } else {
+        let mut used = HashSet::new();
+        for f in &cfg.folders {
+            if !f.is_dir() {
+                eprintln!("スキップ(存在しない): {}", f.display());
+                continue;
+            }
+            let l = label(f, &mut used);
+            mirror(f, &work.join(&l), cfg, &mut rep)?;
         }
-        let l = label(f, &mut used);
-        mirror(f, &work.join(&l), cfg, &mut rep)?;
+        let topics = topics_for(work, eng);
+        crate::index::write_index(work, name, &topics)?;
     }
-    let topics = topics_for(work, eng);
-    crate::index::write_index(work, name, &topics)?;
     git(work, None, &["add", "-A"])?;
     if git(work, None, &["status", "--porcelain"])?.trim().is_empty() {
         return Ok(rep);
@@ -308,4 +313,19 @@ pub fn run_auto(cfg: &Config) -> Result<Report> {
     } else {
         crate::apisync::run_once(cfg)
     }
+}
+
+/// 保存先リポジトリを新しく取得(clone)する。復元用。既にあれば消してから取り直す。
+pub fn fetch_repo(cfg: &Config, name: &str) -> Result<PathBuf> {
+    let _ = cfg;
+    let token = auth::token()?;
+    let owner = github::login_name(&token)?;
+    let dir = data_dir()?.join("restore").join(name);
+    if dir.exists() {
+        std::fs::remove_dir_all(&dir)?;
+    }
+    std::fs::create_dir_all(dir.parent().unwrap())?;
+    let url = format!("https://github.com/{owner}/{name}.git");
+    git(dir.parent().unwrap(), Some(&token), &["clone", "-q", &url, name])?;
+    Ok(dir)
 }
