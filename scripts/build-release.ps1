@@ -30,9 +30,11 @@ $wslDist = (wsl -d $Wsl -- wslpath -a ($dist -replace '\\', '/')).Trim()
 $build = 'cd "__ROOT__" && RUSTFLAGS="__FLAGS__" CARGO_TARGET_DIR="$HOME/ob-target-release" cargo build --release -p open-backup'
 $build = $build.Replace('__ROOT__', $wslRoot).Replace('__FLAGS__', $flags)
 wsl -d $Wsl -- bash -lc $build
+if ($LASTEXITCODE -ne 0) { throw "WSL build failed" }
 $copy = 'cp "$HOME/ob-target-release/release/open-backup" "__DIST__/open-backup-__VER__-linux-x86_64"'
 $copy = $copy.Replace('__DIST__', $wslDist).Replace('__VER__', $Version)
 wsl -d $Wsl -- bash -lc $copy
+if ($LASTEXITCODE -ne 0) { throw "WSL copy failed" }
 
 # Checksums
 $lines = Get-ChildItem $dist -File | Where-Object { $_.Name -ne "SHA256SUMS.txt" } | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower() + "  " + $_.Name }

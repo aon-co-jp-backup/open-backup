@@ -54,6 +54,8 @@ target\release\open-backup serve # 画面: http://127.0.0.1:4620/ui
 
 ### 5. 未了 / Open items (priority order)
 
+> 2026-11-16: v0.2.0 公開(暗号化・復元入り。Windows インストーラー・exe・Linux・Android APK)。Windows インストーラーの無人インストール→`/ui` 200→アンインストール、Android x86_64 エミュレーターで起動・画面(復元カード)・状態を確認。**実機のログイン以降(トークン入力が要る)・iPhone・macOS 実行・Android 署名・GitHub 以外の保存先は未了**。
+
 1. 実機(moto g53y 5G、Android 14)でのログイン → フォルダ追加 → 「今すぐバックアップ」の通し確認(アプリは導入済み・未ログイン。エミュレーターでは通っている)。
 2. iPhone 版。macOS の実行確認。3 OS の CI(`.github/workflows/ci.yml` は用意済み。GitHub アカウントの支払い設定が直れば動く)。
 3. Android の公開用の署名、アップデートの配布。Android での AI 分類(`aruaru-llm` が無いので、拡張子の分類だけ)。

@@ -42,19 +42,22 @@ footer{margin-top:40px;color:var(--sub);font-size:.88rem}
 <p class="en"><b>Always keep the destination repository PRIVATE.</b> If it is public, your backed-up data (which may include personal information or credentials) is visible to everyone. The app only creates private repositories and aborts without sending anything if the destination is public. If you switch it to public later, all your data becomes public — never do that.</p>
 </div>
 
-<h2>ダウンロード / Download <small>(v0.1.0 アルファ版 / alpha)</small></h2>
-<p><a class="btn" href="https://github.com/aon-co-jp/open-backup/releases/tag/v0.1.0">最新のリリースページ / Release page (GitHub)</a></p>
+<h2>ダウンロード / Download <small>(v0.2.0 アルファ版 / alpha)</small></h2>
+<p><a class="btn" href="https://github.com/aon-co-jp/open-backup/releases/tag/v0.2.0">最新のリリースページ / Release page (GitHub)</a></p>
 <table>
 <tr><th>対象 / For</th><th>ファイル / File</th><th>SHA-256</th></tr>
+<tr><td>Windows 10/11 (64bit)<br><span class="en">installer</span></td>
+ <td><a href="https://github.com/aon-co-jp/open-backup/releases/download/v0.2.0/open-backup-0.2.0-windows-x86_64-setup.exe">open-backup-0.2.0-windows-x86_64-setup.exe</a> (3.6 MB)<br><span class="en">インストーラー(ユーザー単位・管理者不要、自動起動は任意) / per-user installer, no admin, optional start at sign-in</span></td>
+ <td class="hash">39d16190a0f5cff4fd89883526d3dc29ddc22107902f9d050352e8b7ddb6719e</td></tr>
 <tr><td>Android 8.0 以上<br><span class="en">Android 8.0+</span></td>
- <td><a href="https://github.com/aon-co-jp/open-backup/releases/download/v0.1.0/open-backup-0.1.0-android-debug.apk">open-backup-0.1.0-android-debug.apk</a> (4.6 MB)<br><span class="en">開発用の署名。提供元不明のアプリの許可が要ります / debug-signed: you must allow installing from unknown sources</span></td>
- <td class="hash">1a47f76a0f7481e9070d1738a2d3347299c6e5250178645ce1c05fbedb12f35d</td></tr>
+ <td><a href="https://github.com/aon-co-jp/open-backup/releases/download/v0.2.0/open-backup-0.2.0-android-debug.apk">open-backup-0.2.0-android-debug.apk</a> (5.6 MB)<br><span class="en">開発用の署名。提供元不明のアプリの許可が要ります / debug-signed: you must allow installing from unknown sources</span></td>
+ <td class="hash">db429bfed5ce33a52b8f7de6518f9b06a213c679db7295a5d2898a0908045119</td></tr>
 <tr><td>Windows 10/11 (64bit)</td>
- <td><a href="https://github.com/aon-co-jp/open-backup/releases/download/v0.1.0/open-backup-0.1.0-windows-x86_64.exe">open-backup-0.1.0-windows-x86_64.exe</a> (4.2 MB)<br><span class="en">コマンドライン+常駐エンジン / command line + resident engine</span></td>
- <td class="hash">dff23e5b10f9391f19d9f436a294b537a2c4a01db53d1e052545c03f0892a9a8</td></tr>
+ <td><a href="https://github.com/aon-co-jp/open-backup/releases/download/v0.2.0/open-backup-0.2.0-windows-x86_64.exe">open-backup-0.2.0-windows-x86_64.exe</a> (5.2 MB)<br><span class="en">コマンドライン+常駐エンジン / command line + resident engine</span></td>
+ <td class="hash">8acaf5479eb715516e710eacbb093ed5653500af16f0922a4810cbf6da029361</td></tr>
 <tr><td>Linux (64bit)</td>
- <td><a href="https://github.com/aon-co-jp/open-backup/releases/download/v0.1.0/open-backup-0.1.0-linux-x86_64">open-backup-0.1.0-linux-x86_64</a> (6.9 MB)<br><span class="en">glibc 2.43(Ubuntu 25.10 相当)でビルド。古いディストリビューションは、ソースからビルドしてください / built with glibc 2.43; on older distros build from source</span></td>
- <td class="hash">1b44ff9af169dcf11d9189e0246c42a1ede88ff763571c1767079074921392fe</td></tr>
+ <td><a href="https://github.com/aon-co-jp/open-backup/releases/download/v0.2.0/open-backup-0.2.0-linux-x86_64">open-backup-0.2.0-linux-x86_64</a> (8.3 MB)<br><span class="en">glibc 2.43(Ubuntu 25.10 相当)でビルド。古いディストリビューションは、ソースからビルドしてください / built with glibc 2.43; on older distros build from source</span></td>
+ <td class="hash">1c4470a4644e4f27df89f5e80808e13326ac50877562b53bc6fd27fa5546f0d0</td></tr>
 </table>
 <p class="en">macOS と iPhone 版は、まだありません。 / No macOS or iPhone build yet. 署名のない開発用のビルドです。ダウンロードしたら、上の SHA-256 と一致するか確かめてください。 / These are unsigned development builds — please verify the SHA-256 after downloading.</p>
 
@@ -90,9 +93,9 @@ footer{margin-top:40px;color:var(--sub);font-size:.88rem}
 
 <h2>状態と制限 / Status and limits</h2>
 <ul>
-<li>アルファ版です。Windows(git の経路・GitHub API の経路)と Android エミュレーターでは保存まで通し確認しました。<b>Android 実機でのログイン以降と、macOS の実行は未確認</b>です。<span class="en"> Alpha. Verified end-to-end on Windows (git and GitHub API paths) and the Android emulator; <b>login and later on a real Android device, and macOS, are not verified yet</b>.</span></li>
+<li>アルファ版です。Windows(git の経路・GitHub API の経路)と Android エミュレーターでは保存まで通し確認しました(v0.2.0 の Android はエミュレーターで起動・画面・復元の窓口まで確認)。<b>Android 実機でのログイン以降と、macOS の実行は未確認</b>です。<span class="en"> Alpha. Verified end-to-end on Windows (git and GitHub API paths) and the Android emulator; <b>login and later on a real Android device, and macOS, are not verified yet</b>.</span></li>
 <li>1 ファイルは 40MB まで。GitHub は大容量のバックアップ向けではありません(リポジトリは数 GB まで)。<span class="en"> Files up to 40 MB; GitHub is not meant for huge backups (a few GB per repository).</span></li>
-<li>暗号化・圧縮・復元は<b>開発版(GitHub の main)</b>で使えます。ダウンロードできる v0.1.0 には、まだ含まれていません。暗号化は、git 方式・GitHub API 方式(Android)のどちらでも使えます。<span class="en"> Encryption, compression and restore are in the <b>development version (GitHub main)</b>; the downloadable v0.1.0 does not include them yet. Encryption works with both the git backend and the GitHub-API backend (Android).</span></li>
+<li>v0.2.0 から、暗号化・圧縮・並列処理・復元が使えます(git 方式・GitHub API 方式〈Android〉のどちらでも暗号化可)。<b>パスフレーズを失うと復元できません。</b><span class="en"> Since v0.2.0: encryption, compression, parallelism and restore (encryption works with both the git and GitHub-API backends). <b>If you lose the passphrase, data cannot be restored.</b></span></li>
 </ul>
 
 <footer>
