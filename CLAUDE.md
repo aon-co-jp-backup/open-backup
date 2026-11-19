@@ -15,6 +15,11 @@
 - 汎用化できる部分は RPoem へ(画面の生成は RPoem の `open-runo-crossui`)。Python は使わない(Rust)。
 - 画面・インストーラーの試験ルール(複数の解像度・縦横・文字サイズ、下部ボタン固定)は、`open-raid-z/CLAUDE.md` の「運用ルール」。
 
+## HANDOFF(2026-11-19) v0.2.0 公開・実機導入 / v0.2.0 released, installed on a device
+
+**日本語**: v0.2.0 を公開(暗号化・復元・Windowsインストーラー・Linux・Android APK、`SHA256SUMS-0.2.0.txt`)。紹介ページ(VPS `/root/easy-web.tokyo/open-backup`)も同版へ。確認済み: Windowsインストーラーの無人インストール→`/ui` 200→アンインストール、Android x86_64 エミュレーターと**実機(A401OP / Android 15、前回記録のmoto g53yとは別の端末)**で起動・画面・復元カード・`/status`、アプリ内の版表記 0.2.0。**未了**: 実機でのログイン以降(トークン入力が要るため利用者が行う)、iPhone、macOS の実行、Android の署名、GitHub 以外の保存先、`open-easy-web` による `aruaru-llm` 管理。**注意**: `build-release.ps1` は WSL の失敗で止まる(以前は古い Linux 版が黙って使われた)。Android の版は `android/app/build.gradle` の `versionName`/`versionCode` も上げる。
+**English**: v0.2.0 is released (encryption, restore, Windows installer, Linux, Android APK, `SHA256SUMS-0.2.0.txt`) and the intro page on the VPS matches. Verified: silent install -> `/ui` 200 -> uninstall of the Windows installer; start, UI, restore card and `/status` on the x86_64 emulator and on a **real device (A401OP / Android 15, not the moto g53y of the earlier notes)**; in-app version 0.2.0. **Open**: login onward on a real device (needs a token, so the owner does it), iPhone, running on macOS, Android signing, non-GitHub destinations, managing `aruaru-llm` via `open-easy-web`. **Notes**: `build-release.ps1` now stops on a WSL failure (it used to reuse a stale Linux binary silently); also bump `versionName`/`versionCode` in `android/app/build.gradle` for Android.
+
 ## HANDOFF(2026-10-14 時点) / State
 
 - **実装済み / Done**: コア(認証・非公開リポジトリの確認/作成・保存・世代の切替・索引+AI の分類)、**2 つの保存方法**(`git` の経路 `sync.rs`、GitHub Data API だけの経路 `apisync.rs`。`backend="auto"`)、CLI(`login` `add` `remove` `status` `once` `run` `serve` `index`)、常駐エンジン `serve`(127.0.0.1:4620、画面 `/ui`、`/login` `/logout` を含む)、画面(RPoem で生成、ログイン欄・おすすめフォルダ・「はじめての方へ」の日英の案内)、Android アプリ(`android/`)。

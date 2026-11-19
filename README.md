@@ -3,7 +3,21 @@
 端末のデータ(指定フォルダ)を、利用者自身のGitHubアカウントの**非公開リポジトリ**へ自動でバックアップします。
 Automatically backs up folders you choose on your device to a **private repository** in your own GitHub account.
 
-**ダウンロード・紹介ページ / Download & website**: [リリース v0.1.0 / Releases](https://github.com/aon-co-jp/open-backup/releases) ・ [https://easy-web.tokyo/open-backup/](https://easy-web.tokyo/open-backup/)(Android の APK・Windows・Linux。開発用の署名のないビルド / unsigned development builds)
+**ダウンロード・紹介ページ / Download & website**: [リリース v0.2.0 / Releases](https://github.com/aon-co-jp/open-backup/releases) ・ [https://easy-web.tokyo/open-backup/](https://easy-web.tokyo/open-backup/)(Windowsインストーラー・Android の APK・Linux。開発用の署名のないビルド / Windows installer, Android APK, Linux; unsigned development builds)
+
+## ひとことで言うと / In plain words
+
+**日本語**
+- **なにをするの?** あなたのスマホやパソコンの大事なファイル(写真・書類など)を、ネットの「あなた専用の金庫」(GitHubの非公開リポジトリ)に、自動でコピーしておきます。スマホをなくしたり、パソコンがこわれたりしても、金庫から取り戻せます。
+- **だれにも見られないの?** 金庫は「非公開」だけを使います。さらに、送る前にファイルを**暗号化**(じぶんだけが読めるカギをかける)すれば、金庫の中身も読めません。**カギ(パスフレーズ)をなくすと、だれにも戻せません。** 紙に書いて、大切にしまってください。
+- **むずかしい設定は?** 「フォルダを選ぶ」→「ログインする」→「バックアップ開始」だけです。あとは裏でこっそり動きます。
+- **専門の方へ**: Rust製のコア+常駐エンジン(127.0.0.1のみ待受)、画面はRPoemで生成、Androidは前面サービス+WebView。保存はgit方式とGitHub Data API方式(git不要)の2通り。暗号化はXChaCha20-Poly1305+Argon2id(チャンク単位・決定的nonce・AADにパス)、圧縮はzstd、世代切替(現用+次用の2リポジトリ、上限の9割で切替)。
+
+**English**
+- **What does it do?** It automatically copies the important files on your phone or computer (photos, documents, ...) into your own private "vault" on the internet (a private GitHub repository). If you lose your phone or your computer breaks, you can get everything back from the vault.
+- **Can anyone else see it?** The vault is always **private**. If you also turn on **encryption** (locking the files with a key only you know), nobody can read the contents, not even if they got into the vault. **If you lose the key (passphrase), nobody can bring the files back.** Write it on paper and keep it safe.
+- **Is it hard to set up?** No: "choose a folder" -> "log in" -> "start the backup". After that it works quietly in the background.
+- **For experts**: Rust core plus a resident engine (listens on 127.0.0.1 only), UI generated with RPoem, Android uses a foreground service plus a WebView. Two storage paths: git, and the GitHub Data API (no git needed). Encryption is XChaCha20-Poly1305 with Argon2id (per-chunk, deterministic nonce, path bound as AAD); compression is zstd; generation rollover (an active and a spare repository, switching at 90% of the limit).
 
 ## ⚠️ 注意 / Warning
 
@@ -34,7 +48,7 @@ Rust のみで実装し、画面は [RPoem](https://github.com/aon-co-jp/RPoem) 
 | `crates/open-backup-core` | OS非依存のコア(設定・GitHub認証・非公開リポジトリ作成・ミラー/commit/push) | 実装済み |
 | `crates/open-backup-cli` (`open-backup`) | デスクトップ向けの常駐CLI(フォルダ変更の監視+定期実行) | 実装済み(Windowsでビルド確認) |
 | 画面(RPoem crossui) | Windows/macOS/Linux/Android 向けのUI(`tools/gen-ui` → `ui/`、エンジンが `/ui` で配信) | 実装済み(Windows と Android エミュレーターで確認) |
-| Android アプリ | `android/`(WebView + 前面サービスで Rust のエンジンを起動。**git 不要**、GitHub API だけで保存) | 実装済み(エミュレーターで通し確認。実機は未確認) |
+| Android アプリ | `android/`(WebView + 前面サービスで Rust のエンジンを起動。**git 不要**、GitHub API だけで保存) | 実装済み(エミュレーターで通し確認。実機 A401OP / Android 15 で起動・画面を確認、ログイン以降は未確認 / on a real device: starts and shows the UI, login onward not yet verified) |
 | iPhone | 将来 | 未着手 |
 
 ## 事前準備(利用者の自己責任で) / Before you start (your own responsibility)
