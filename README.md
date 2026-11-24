@@ -1,3 +1,5 @@
+> Latest translations / 翻訳の最新版: [0-LATEST-TRANSLATIONS.md](0-LATEST-TRANSLATIONS.md)
+
 # open-backup
 
 **日本語**: スマホやパソコンの大事なファイルを、あなた専用の「ネットの金庫」(GitHub の**非公開**リポジトリ)へ、自動でコピーしておくアプリです。
